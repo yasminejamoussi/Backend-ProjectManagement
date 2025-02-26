@@ -7,8 +7,107 @@ const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const LoginAttempt = require('../models/LoginAttempt');
 const { spawn } = require("child_process");
+const speakeasy = require("speakeasy");
+const QRCode = require("qrcode");
 
-
+exports.generate2FA = async (req, res) => {
+    try {
+      const { email } = req.body;
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: "Utilisateur non trouvé." });
+      }
+  
+      // Générer un secret TOTP pour Google Authenticator
+      const secret = speakeasy.generateSecret({ length: 20 });
+      const otpAuthUrl = `otpauth://totp/MyApp:${email}?secret=${secret.base32}&issuer=MyApp`;
+  
+      // Stocker temporairement le secret
+      user.twoFactorTempSecret = secret.base32;
+      await user.save();
+  
+      // Générer le QR Code
+      QRCode.toDataURL(otpAuthUrl, (err, qrCodeDataUrl) => {
+        if (err) {
+          return res.status(500).json({ message: "Erreur lors de la génération du QR Code" });
+        }
+        res.json({ qrCode: qrCodeDataUrl, secret: secret.base32 });
+      });
+    } catch (error) {
+      console.error("Erreur lors de la génération du 2FA:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  };
+  
+  // Activer le 2FA après validation du code
+  exports.enable2FA = async (req, res) => {
+    try {
+      const { email, token } = req.body;
+      const user = await User.findOne({ email });
+      if (!user || !user.twoFactorTempSecret) {
+        return res.status(400).json({ message: "Aucun 2FA temporaire trouvé." });
+      }
+  
+      // Vérifier le code entré
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorTempSecret,
+        encoding: "base32",
+        token,
+        window: 1,
+      });
+  
+      if (!isValid) {
+        return res.status(400).json({ message: "Code de vérification invalide." });
+      }
+  
+      // Activer définitivement le 2FA
+      user.twoFactorSecret = user.twoFactorTempSecret;
+      user.isTwoFactorEnabled = true;
+      user.twoFactorTempSecret = null;
+      await user.save();
+  
+      res.json({ message: "2FA activé avec succès !" });
+    } catch (error) {
+      console.error("Erreur lors de l'activation du 2FA:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  };
+  
+  // Vérifier le 2FA à la connexion
+  exports.verify2FA = async (req, res) => {
+    try {
+      const { email, token } = req.body;
+      const user = await User.findOne({ email });
+      if (!user || !user.isTwoFactorEnabled) {
+        return res.status(400).json({ message: "2FA non activé pour cet utilisateur." });
+      }
+  
+      // Vérifier le code TOTP
+      const verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: "base32",
+        token,
+        window: 1,
+      });
+  
+      if (!verified) {
+        return res.status(400).json({ message: "Code de vérification invalide." });
+      }
+  
+      // Générer un token JWT après validation
+      const authToken = jwt.sign(
+        { id: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN }
+      );
+  
+      res.json({ message: "Authentification réussie", token: authToken });
+    } catch (error) {
+      console.error("Erreur lors de la vérification du 2FA:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  };
+  
 // Register a new user
 exports.register = async (req, res) => {
     try {
@@ -102,7 +201,7 @@ exports.login = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 }; */
-exports.login = async (req, res) => {
+/*exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
         const ip = req.ip;
@@ -187,6 +286,107 @@ exports.login = async (req, res) => {
             }
 
             // ✅ Générer un token JWT SEULEMENT si l'utilisateur n'est pas bloqué
+            const authToken = jwt.sign(
+                { id: user._id, role: user.role },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRES_IN }
+            );
+
+            console.log("Token Generated:", authToken);
+            return res.json({ message: "Login successful", token: authToken });
+        });
+
+    } catch (error) {
+        console.error("Error during login:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};*/
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const ip = req.ip;
+
+        console.log("Login Request:", { email });
+
+        // Vérifier si l'utilisateur existe
+        const user = await User.findOne({ email });
+        if (!user) {
+            console.log("User not found for email:", email);
+            await LoginAttempt.create({ email, ip, success: false });
+            return res.status(400).json({ message: "Invalid credentials" });
+        }
+
+        // Vérifier si l'utilisateur est bloqué
+        if (user.blocked && new Date() < user.blocked_until) {
+            console.log(`User ${email} is blocked until ${user.blocked_until}.`);
+            return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${user.blocked_until}.` });
+        }
+
+        // Débloquer si le temps de blocage est écoulé
+        if (user.blocked && new Date() >= user.blocked_until) {
+            await User.updateOne(
+                { email },
+                { $set: { blocked: false, blocked_until: null, anomaly_count: 0 } }
+            );
+            await LoginAttempt.deleteMany({ email, success: false });
+            console.log(`User ${email} débloqué.`);
+        }
+
+        // Vérifier le mot de passe
+        const isMatch = await argon2.verify(user.password, password);
+        await LoginAttempt.create({ email, ip, success: isMatch });
+
+        // Vérifier si la 2FA est activée
+        if (user.isTwoFactorEnabled) {
+            return res.status(200).json({ message: "2FA required" });
+        }
+
+        // Exécuter le script Python pour détecter les anomalies
+        const pythonProcess = spawn("python3", ["src/scripts/detect_anomalies.py", email, ip, isMatch.toString()]);
+        let pythonOutput = "";
+
+        pythonProcess.stdout.on("data", (data) => {
+            pythonOutput += data.toString();
+            console.log(`Python Output: ${data.toString().trim()}`);
+        });
+
+        pythonProcess.stderr.on("data", (data) => {
+            console.error(`Python Error: ${data}`);
+        });
+
+        pythonProcess.on("close", async (code) => {
+            console.log(`Python process exited with code ${code}`);
+            const output = pythonOutput.trim();
+
+            if (output.includes("blocked")) {
+                console.log(`🚨 User ${email} is now blocked. No token will be generated.`);
+                return res.status(403).json({ message: "Votre compte est bloqué en raison de trop d'anomalies." });
+            }
+
+            const refreshedUser = await User.findOne({ email });
+            if (refreshedUser.blocked) {
+                console.log(`User ${email} is now blocked. No token will be generated.`);
+                return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${refreshedUser.blocked_until}.` });
+            }
+
+            if (!isMatch) {
+                await User.updateOne({ email }, { $inc: { anomaly_count: 1 } });
+
+                const updatedUser = await User.findOne({ email });
+                if (updatedUser.anomaly_count >= 3) {
+                    const blockedUntil = new Date(Date.now() + 60000);
+                    await User.updateOne(
+                        { email },
+                        { $set: { blocked: true, blocked_until: blockedUntil } }
+                    );
+                    console.log(`User ${email} blocked until ${blockedUntil}.`);
+                    return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${blockedUntil}.` });
+                }
+
+                return res.status(400).json({ message: "Invalid credentials" });
+            }
+
+            // Générer un token JWT
             const authToken = jwt.sign(
                 { id: user._id, role: user.role },
                 process.env.JWT_SECRET,
