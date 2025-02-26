@@ -11,7 +11,7 @@ const UserSchema = new mongoose.Schema(
       type: String, 
       required: function () { return !this.googleId; } 
     },
-    googleId: { type: String, required: false, unique: true }, 
+    googleId: { type: String, required: false }, 
     facebookId: String,
     githubId: String,
     role: { 
@@ -21,7 +21,7 @@ const UserSchema = new mongoose.Schema(
     },
     resetCode: { type: String },  
     resetCodeExpires: { type: Date },
-    faceLabel: { type: String, unique: true },
+    faceLabel: { type: String },
     isTwoFactorEnabled: { type: Boolean, default: false },
     twoFactorSecret: { type: String }, 
     twoFactorTempSecret: { type: String }, 
