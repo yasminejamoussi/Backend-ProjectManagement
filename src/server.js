@@ -19,6 +19,7 @@ app.use(cors({
   origin: 'http://localhost:5173', // Ou l'URL de votre frontend si c'est dans un autre conteneur
 }));
 
+// salem test 
 
 // 🔹 Connexion à MongoDB
 mongoose
