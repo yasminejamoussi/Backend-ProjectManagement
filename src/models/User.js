@@ -13,15 +13,18 @@ const UserSchema = new mongoose.Schema(
     },
     googleId: { type: String, required: false, unique: true }, 
     facebookId: String,
-    githubId:String,
+    githubId: String,
     role: { 
       type: String, 
       enum: ["Admin", "Project Manager", "Team Leader", "Team Member", "Guest"], 
       default: "Guest" 
     },
-    resetCode: { type: String },  // Code de vérification pour le reset
-    resetCodeExpires: { type: Date }, // Expiration du code
+    resetCode: { type: String },  
+    resetCodeExpires: { type: Date },
     faceLabel: { type: String, unique: true },
+    isTwoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret: { type: String }, 
+    twoFactorTempSecret: { type: String }, 
   },
   { timestamps: true }
 );

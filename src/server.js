@@ -6,6 +6,7 @@ require("dotenv").config();
 
 // Importer les routes (que nous allons créer après)
 const authRoutes = require("./routes/authRoutes");
+const roleRoutes = require("./routes/roleRoutes");
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(cors({
   origin: 'http://localhost:5173', // Ou l'URL de votre frontend si c'est dans un autre conteneur
 }));
 
+// salem test 
 
 // 🔹 Connexion à MongoDB
 mongoose
@@ -27,7 +29,7 @@ mongoose
 
 // 🔹 Routes
 app.use("/api/auth", authRoutes);
-
+app.use("/api/roles", roleRoutes);
 
 app.get("/", (req, res) => {
   res.send(" Backend is running...");
