@@ -6,6 +6,7 @@ require("dotenv").config();
 
 // Importer les routes (que nous allons créer après)
 const authRoutes = require("./routes/authRoutes");
+const roleRoutes = require("./routes/roleRoutes");
 
 const app = express();
 
@@ -27,7 +28,7 @@ mongoose
 
 // 🔹 Routes
 app.use("/api/auth", authRoutes);
-
+app.use("/api/roles", roleRoutes);
 
 app.get("/", (req, res) => {
   res.send(" Backend is running...");

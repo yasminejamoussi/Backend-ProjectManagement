@@ -5,6 +5,9 @@ const axios = require('axios');
 const { oauth2Client } = require('../utils/googleClient');  // Assuming oauth2Client is set up
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const LoginAttempt = require('../models/LoginAttempt');
+const { spawn } = require("child_process");
+
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -39,7 +42,6 @@ exports.register = async (req, res) => {
         if (userExists) {
             return res.status(400).json({ message: "Email already exists" });
         }
-
         // Create new user
         const user = new User({
             firstname,
@@ -57,7 +59,7 @@ exports.register = async (req, res) => {
     }
 };
 
-// Login a user
+/* // Login a user
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -97,9 +99,108 @@ exports.login = async (req, res) => {
         console.error("Stack Trace:", error.stack);
         res.status(500).json({ message: "Server error" });
     }
+}; */
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const ip = req.ip;
+
+        console.log("Login Request:", { email });
+
+        // Vérifier si l'utilisateur existe
+        const user = await User.findOne({ email });
+        if (!user) {
+            console.log("User not found for email:", email);
+            await LoginAttempt.create({ email, ip, success: false });
+            return res.status(400).json({ message: "Invalid credentials" });
+        }
+
+        // Vérifier si l'utilisateur est bloqué avant toute tentative
+        if (user.blocked && new Date() < user.blocked_until) {
+            console.log(`User ${email} is blocked until ${user.blocked_until}.`);
+            return res.status(403).json({ message:` Votre compte est bloqué jusqu'à ${user.blocked_until}. `});
+        }
+
+        // Débloquer si le temps de blocage est écoulé
+        if (user.blocked && new Date() >= user.blocked_until) {
+            await User.updateOne(
+                { email },
+                { $set: { blocked: false, blocked_until: null, anomaly_count: 0 } }
+            );
+            await LoginAttempt.deleteMany({ email, success: false });
+            console.log(`User ${email} débloqué.`);
+        }
+
+        // Vérifier le mot de passe
+        const isMatch = await argon2.verify(user.password, password);
+        await LoginAttempt.create({ email, ip, success: isMatch });
+
+        // Exécuter le script Python pour détecter les anomalies
+        const pythonProcess = spawn("python3", ["src/scripts/detect_anomalies.py", email, ip, isMatch.toString()]);
+        let pythonOutput = "";
+
+        pythonProcess.stdout.on("data", (data) => {
+            pythonOutput += data.toString();
+            console.log(`Python Output: ${data.toString().trim()}`);
+        });
+
+        pythonProcess.stderr.on("data", (data) => {
+            console.error(`Python Error: ${data}`);
+        });
+
+        pythonProcess.on("close", async (code) => {
+            console.log(`Python process exited with code ${code}`);
+            const output = pythonOutput.trim();
+
+            // 🔥 Vérifier si Python a détecté un blocage
+            if (output.includes("blocked")) {
+                console.log(`🚨 User ${email} is now blocked. No token will be generated.`);
+                return res.status(403).json({ message: "Votre compte est bloqué en raison de trop d'anomalies." });
+            }
+
+            // Vérifier après exécution du script si l'utilisateur est bloqué
+            const refreshedUser = await User.findOne({ email });
+            if (refreshedUser.blocked) {
+                console.log(`User ${email} is now blocked. No token will be generated.`);
+                return res.status(403).json({ message:` Votre compte est bloqué jusqu'à ${refreshedUser.blocked_until}.` });
+            }
+
+            // Si l'authentification échoue, incrémenter le compteur d'anomalies
+            if (!isMatch) {
+                await User.updateOne({ email }, { $inc: { anomaly_count: 1 } });
+
+                // Vérifier si l'utilisateur doit être bloqué
+                const updatedUser = await User.findOne({ email });
+                if (updatedUser.anomaly_count >= 3) {
+                    const blockedUntil = new Date(Date.now() + 60000); // Bloqué pour 1 minute
+                    await User.updateOne(
+                        { email },
+                        { $set: { blocked: true, blocked_until: blockedUntil } }
+                    );
+                    console.log(`User ${email} blocked until ${blockedUntil}.`);
+                    return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${blockedUntil}. `});
+                }
+
+                return res.status(400).json({ message: "Invalid credentials" });
+            }
+
+            // ✅ Générer un token JWT SEULEMENT si l'utilisateur n'est pas bloqué
+            const authToken = jwt.sign(
+                { id: user._id, role: user.role },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRES_IN }
+            );
+
+            console.log("Token Generated:", authToken);
+            return res.json({ message: "Login successful", token: authToken });
+        });
+
+    } catch (error) {
+        console.error("Error during login:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
 };
-//face
-// Login a user with Face ID
+// Login with Face ID
 exports.loginWithFace = async (req, res) => {
     try {
         const { faceLabel } = req.body;
@@ -211,58 +312,6 @@ exports.registerFaceLabel = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
-//facebook 
-exports.facebookAuth = async (req, res) => {
-    const { access_token } = req.body;
-    console.log("Received Facebook Access Token:", access_token);
-  
-    try {
-      if (!access_token) {
-        console.error("Error: Access token is missing");
-        return res.status(400).json({ message: "Access token is required" });
-      }
-  
-      // Récupérer les informations de l'utilisateur depuis Facebook
-      const userRes = await axios.get(`https://graph.facebook.com/me?fields=id,name,email&access_token=${access_token}`);
-      console.log("Facebook User Info:", userRes.data);
-  
-      const { email, name, id: facebookId } = userRes.data;
-  
-      if (!email) {
-        return res.status(400).json({ message: "Email is required from Facebook" });
-      }
-  
-      let user = await User.findOne({ email });
-  
-      if (!user) {
-        user = await User.create({
-          firstname: name.split(' ')[0],
-          lastname: name.split(' ')[1] || '',
-          email,
-          phone: '00000000',
-          facebookId,
-          role: 'Guest',
-        });
-        console.log("New user created:", user);
-      } else {
-        console.log("Existing user found:", user);
-      }
-  
-      const { _id } = user;
-      const token = jwt.sign({ _id, email }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_TIMEOUT || 3600,
-      });
-  
-      console.log("Generated JWT Token:", token);
-  
-      res.status(200).json({ message: "success", token, user });
-    } catch (err) {
-      console.error("Facebook Auth Error:", err);
-      res.status(500).json({ message: "Internal Server Error" });
-    }
-  };
-  
-
 // 1. Envoyer le code de vérification
 exports.sendResetCode = async (req, res) => {
     try {
@@ -353,28 +402,44 @@ exports.getProfile = async (req, res) => {
     }
 };
 
-// Get all users
+
 exports.getUsers = async (req, res) => {
     try {
-        const users = await User.find();
-
-        if (!users || users.length === 0) {
-            return res.status(404).json({ message: "No users found" });
-        }
-
-        res.status(200).json(users);
+      // Récupérer tous les utilisateurs dans la base de données
+      const users = await User.find();
+  
+      // Si aucun utilisateur n'est trouvé
+      if (!users || users.length === 0) {
+        return res.status(404).json({ message: "No users found" });
+      }
+  
+      // Renvoi des utilisateurs trouvés
+      res.status(200).json(users);
     } catch (error) {
-        console.error("Error fetching users:", error);
-        res.status(500).json({ message: "Server error" });
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Server error" });
     }
-};
-
-// Update a user
-exports.updateUser = async (req, res) => {
+  };
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
+  // Mettre à jour un utilisateur
+  exports.updateUser = async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
 
+        // Validation de l'email
+        if (updates.email && !emailRegex.test(updates.email)) {
+            return res.status(400).json({ message: "Invalid email format" });
+        }
+
+        // Validation du numéro de téléphone
+        if (updates.phone && !phoneRegex.test(updates.phone)) {
+            return res.status(400).json({ message: "Invalid phone number format" });
+        }
+
+        // Hachage du mot de passe si fourni
         if (updates.password) {
             updates.password = await argon2.hash(updates.password);
         }
@@ -390,41 +455,44 @@ exports.updateUser = async (req, res) => {
         res.status(500).json({ message: "Update error", error: error.message });
     }
 };
-
-// Get a user by ID
-exports.getUserById = async (req, res) => {
+  exports.getUserById = async (req, res) => {
     try {
         const { id } = req.params;
-
+  
+        // Vérifier si l'ID est valide (optionnel si Mongoose gère déjà)
         if (!id.match(/^[0-9a-fA-F]{24}$/)) {
             return res.status(400).json({ message: "Invalid user ID" });
         }
-
+  
+        // Rechercher l'utilisateur par son ID en excluant le mot de passe
         const user = await User.findById(id).select("-password");
-
+  
+        // Vérifier si l'utilisateur existe
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-
+  
+        // Retourner les informations de l'utilisateur
         res.status(200).json(user);
     } catch (error) {
         console.error("Error fetching user by ID:", error);
         res.status(500).json({ message: "Server error" });
     }
-};
-
-// Delete a user
-exports.deleteUser = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const deletedUser = await User.findByIdAndDelete(id);
-
-        if (!deletedUser) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.status(200).json({ message: "User deleted successfully" });
-    } catch (error) {
-        res.status(500).json({ message: "Delete error", error: error.message });
-    }
-};
+  };
+  
+  
+  // Supprimer un utilisateur
+  exports.deleteUser = async (req, res) => {
+      try {
+          const { id } = req.params;
+          const deletedUser = await User.findByIdAndDelete(id);
+  
+          if (!deletedUser) {
+              return res.status(404).json({ message: "User not found" });
+          }
+  
+          res.status(200).json({ message: "User deleted successfully" });
+      } catch (error) {
+          res.status(500).json({ message: "Delete error", error: error.message });
+      }
+  };
