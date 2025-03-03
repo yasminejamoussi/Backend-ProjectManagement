@@ -9,6 +9,7 @@ const authRoutes = require("./routes/authRoutes");
 const roleRoutes = require("./routes/roleRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const taskRoutes = require('./routes/taskRoutes');
 const app = express();
 
 // 🔹 Middleware
@@ -32,7 +33,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/profile", profileRoutes);
-
+app.use('/api', taskRoutes);
 
 app.get("/", (req, res) => {
   res.send(" Backend is running...");

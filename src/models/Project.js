@@ -22,7 +22,8 @@ const projectSchema = new mongoose.Schema({
   },
   deliverables: { type: [String], default: [] },
   projectManager: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Remplace owner par projectManager
-  teamMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+  teamMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  tasks: [{ type: mongoose.Schema.Types.ObjectId, ref: "Task" }]
 }, { timestamps: true });
 
 module.exports = mongoose.model("Project", projectSchema);
