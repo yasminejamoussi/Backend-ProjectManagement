@@ -3,7 +3,7 @@ import string
 
 def generate_strong_password(length=16):
     if length < 4:
-        raise ValueError("La longueur minimale doit être de 4 caractères pour inclure toutes les catégories.")
+        raise ValueError("The min length required is 4")
     
     # Définition des catégories de caractères
     lowercase = string.ascii_lowercase

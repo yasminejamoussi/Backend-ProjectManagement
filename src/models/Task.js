@@ -5,18 +5,18 @@ const taskSchema = new mongoose.Schema({
     type: String, 
     required: true, 
     trim: true,
-    maxlength: 100 // Limite raisonnable pour un titre
+    maxlength: 100
   },
   description: { 
     type: String, 
     maxlength: 500,
-    trim: true // Ajout de trim pour cohérence
+    trim: true
   },
   status: { 
     type: String, 
     enum: ["To Do", "In Progress", "Done", "Review", "Tested"], 
     default: "To Do",
-    index: true // Index pour filtrer rapidement par statut
+    index: true
   },
   priority: { 
     type: String, 
@@ -27,12 +27,12 @@ const taskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: "Project", 
     required: true,
-    index: true // Index pour filtrer par projet
+    index: true
   },
   assignedTo: [{ 
     type: mongoose.Schema.Types.ObjectId, 
     ref: "User", 
-    required: false // Tableau pour plusieurs assignés, optionnel
+    required: false
   }],
   dueDate: { 
     type: Date, 
@@ -40,13 +40,16 @@ const taskSchema = new mongoose.Schema({
   },
   startDate: { 
     type: Date, 
-    required: false // Optionnel, pas de Date.now par défaut
+    required: false
   },
   createdBy: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: "User", 
-    required: true // Qui a créé la tâche
-  }
+    required: true
+  },
+  importance: { type: Number, default: 0 },
+  urgency: { type: Number, default: 0 },
+  effort: { type: Number, default: 0 }
 }, { timestamps: true });
 
 // Validation personnalisée pour dueDate
@@ -55,6 +58,40 @@ taskSchema.pre('save', function(next) {
     next(new Error("La date d'échéance ne peut pas être antérieure à la date de début."));
   } else {
     next();
+  }
+});
+
+// Hook avant sauvegarde pour synchroniser assignedTasks
+taskSchema.pre('save', async function (next) {
+  try {
+    const User = mongoose.model('User');
+    for (const userId of this.assignedTo) {
+      const user = await User.findById(userId);
+      if (user && !user.assignedTasks.includes(this._id)) {
+        user.assignedTasks.push(this._id);
+        await user.save();
+      }
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Hook avant suppression pour nettoyer assignedTasks
+taskSchema.pre('remove', async function (next) {
+  try {
+    const User = mongoose.model('User');
+    for (const userId of this.assignedTo) {
+      const user = await User.findById(userId);
+      if (user) {
+        user.assignedTasks.pull(this._id);
+        await user.save();
+      }
+    }
+    next();
+  } catch (error) {
+    next(error);
   }
 });
 

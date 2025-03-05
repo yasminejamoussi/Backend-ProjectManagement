@@ -65,15 +65,28 @@ exports.uploadProfileImage = (req, res) => {
 // 📌 **2. Get user profile info**
 exports.getUserProfile = async (req, res) => {
   try {
-    const userId = req.user.id;  // Utilise l'ID de l'utilisateur extrait du token
-    const user = await User.findById(userId).select("-password");
+    const userId = req.user.id; // Utilise l'ID de l'utilisateur extrait du token
+    const user = await User.findById(userId)
+      .select("-password") // Exclut le mot de passe
+      .populate('role', 'name') // Peuple le rôle
+      .populate('managedProjects', 'name status') // Peuple les projets gérés
+      .populate({
+        path: 'assignedTasks',
+        select: 'title status priority project', // Peuple les tâches
+        populate: { path: 'project', select: 'name' } // Peuple le projet dans les tâches
+      });
+
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    console.log("User data sent to frontend:", user); // Ajout pour débogage
     res.json(user);
   } catch (error) {
+    console.error("Error in getUserProfile:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
 exports.updateUserProfile = async (req, res) => {
   try {
     const userId = req.user.id;

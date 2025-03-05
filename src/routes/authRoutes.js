@@ -22,7 +22,7 @@ router.put("/users/:id", userController.updateUser);
 router.delete("/users/:id",userController.deleteUser);
 
 //2FA
-router.post("/generate-2fa", generate2FA);  
+router.post("/generate-2fa",userController.generate2FA);  
 router.post("/enable-2fa",userController.enable2FA);  
 router.post("/verify-2fa", userController.verify2FA);  
 // Password Generator
