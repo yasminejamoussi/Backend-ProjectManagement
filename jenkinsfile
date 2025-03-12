@@ -68,18 +68,19 @@ pipeline {
                 }
             }
 
-        stage('Unit Test Backend') {
-            steps {
-                script {
-                    dir('backend') {
-                        echo "🧪 Exécution des tests unitaires du backend..."
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh 'npm test -- --ci --reporters=default --reporters=jest-junit'
-                        }
-                    }
+       stage('Unit Test Backend') {
+    steps {
+        script {
+            dir('backend') {
+                sh 'npm install --save-dev jest-junit' // ✅ Ajoute cette ligne avant d'exécuter les tests
+                timeout(time: 5, unit: 'MINUTES') {
+                    sh 'npm test -- --ci --reporters=default --reporters=jest-junit'
                 }
             }
         }
+    }
+}
+
 
         stage('Build Frontend') {
             steps {
