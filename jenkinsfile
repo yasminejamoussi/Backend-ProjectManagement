@@ -93,25 +93,28 @@ pipeline {
             }
         }
 
-        stage('Building Docker Images') {
-            steps {
-                script {
-                    echo "🚀 Build des images Docker..."
-                    sh 'docker-compose build'
-                }
+       stage('Building Docker Images') {
+    steps {
+        script {
+            dir('backend') {  // Change vers le dossier contenant docker-compose.yml
+                sh 'docker-compose build'
             }
         }
+    }
+}
 
-        stage('Run Application') {
-            steps {
-                script {
-                    echo "🚀 Démarrage des services avec Docker Compose..."
-                    timeout(time: 5, unit: 'MINUTES') {
-                        sh 'docker-compose up -d'
-                    }
-                }
+
+       stage('Run Application') {
+    steps {
+        script {
+            echo "🚀 Démarrage des services avec Docker Compose..."
+            timeout(time: 5, unit: 'MINUTES') {
+                sh 'docker-compose -f backend/docker-compose.yml up -d'
             }
         }
+    }
+}
+
     }
 
     post {
