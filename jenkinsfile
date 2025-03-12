@@ -4,7 +4,7 @@ pipeline {
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
-        SONAR_TOKEN = credentials('sonarqube-token')
+        SONAR_TOKEN = credentials('sonarqube-token') // 🔹 Récupération du token depuis Jenkins
     }
 
     stages {
@@ -23,6 +23,17 @@ pipeline {
             }
         }
 
+        stage('Install Frontend Dependencies') {
+            steps {
+                script {
+                    dir('frontend') {
+                        echo "📦 Installation des dépendances du frontend..."
+                        sh 'npm install'
+                    }
+                }
+            }
+        }
+
         stage('Install Backend Dependencies') {
             steps {
                 script {
@@ -37,11 +48,11 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    def scannerHome = tool 'scanner'
+                    def scannerHome = tool 'scanner' // 🔹 Assurez-vous que le scanner est bien configuré
                     withSonarQubeEnv('scanner') {
                         dir('backend') {
                             echo "🚀 Démarrage de l'analyse SonarQube..."
-                            timeout(time: 10, unit: 'MINUTES') {
+                            timeout(time: 10, unit: 'MINUTES') { // Augmente le timeout
                                 sh """
                                     ${scannerHome}/bin/sonar-scanner \
                                     -Dsonar.projectKey=projectpi \
@@ -57,13 +68,44 @@ pipeline {
             }
         }
 
-        stage('Build Backend & Docker') {
+        stage('Unit Test Backend') {
             steps {
                 script {
                     dir('backend') {
-                        echo "🚀 Construction des images Docker..."
-                        sh 'docker-compose build'
+                        sh 'npm install --save-dev jest-junit' // 🔹 Ajoute cette ligne avant d'exécuter les tests
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit'
+                        }
                     }
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                script {
+                    dir('frontend') {
+                        echo "🛠️ Construction du frontend..."
+                        sh 'npm run build'
+                    }
+                }
+            }
+        }
+
+        stage('Building Docker Images') {
+            steps {
+                script {
+                    echo "🚀 Build des images Docker..."
+                    sh 'docker-compose build' // 🔹 Pas besoin de spécifier "-f docker-compose.yaml" si ton fichier est bien nommé "docker-compose.yml"
+                }
+            }
+        }
+
+        stage('Run Application') {
+            steps {
+                script {
+                    echo "🚀 Démarrage de l'application..."
+                    sh 'docker-compose up -d'
                 }
             }
         }
@@ -78,7 +120,7 @@ pipeline {
         }
         always {
             echo "📂 Nettoyage de l'espace de travail après exécution..."
-            cleanWs()
+            cleanWs() // Nettoie le workspace après le pipeline
         }
     }
 }
