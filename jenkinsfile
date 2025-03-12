@@ -95,7 +95,7 @@ pipeline {
         stage('Building Docker Images') {
     steps {
         script {
-            dir('Backend-ProjectManagement') {  // 🔹 Assure-toi d'être dans le dossier où se trouve docker-compose.yml
+            dir('backend') {  
                 echo "🚀 Build des images Docker..."
                 sh 'docker-compose build'
             }
