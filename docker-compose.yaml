@@ -12,15 +12,15 @@ services:
 
   web:
     build:
-      context: ./frontend/projectmanagement
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: web
     ports:
       - "5173:5173"
     volumes:
-      - "./frontend/projectmanagement/:/src"
+      - "./frontend/:/src"
       - "/src/node_modules"  # Empêche l'écrasement des dépendances
-      - "./frontend/projectmanagement/public:/src/public"
+      - "./frontend/public:/src/public"
 
   mongo:
     image: mongo

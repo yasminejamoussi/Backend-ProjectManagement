@@ -97,7 +97,7 @@ pipeline {
     steps {
         script {
             dir('backend') {  // Change vers le dossier contenant docker-compose.yml
-                sh 'docker-compose build'
+               sh 'docker-compose -f docker-compose.yml build'
             }
         }
     }
@@ -107,12 +107,13 @@ pipeline {
        stage('Run Application') {
     steps {
         script {
-            echo "🚀 Démarrage des services avec Docker Compose..."
-            timeout(time: 5, unit: 'MINUTES') {
-                sh 'docker-compose -f backend/docker-compose.yml up -d'
+            dir('backend') {  // Se place dans le bon répertoire avant d'exécuter la commande
+                sh 'docker-compose up -d'
             }
         }
     }
+}
+
 }
 
     }
