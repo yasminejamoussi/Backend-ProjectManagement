@@ -91,7 +91,7 @@ pipeline {
                 }
             }
         }
-        
+
 stage('Check Docker Compose') {
     steps {
         script {
@@ -105,7 +105,7 @@ stage('Check Docker Compose') {
         script {
             dir('backend') {  
                 echo "🚀 Build des images Docker..."
-                sh 'docker-compose -f docker-compose.yml build'
+                sh 'docker-compose -f docker-compose.yaml build'
             }
         }
     }
