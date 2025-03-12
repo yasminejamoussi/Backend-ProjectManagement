@@ -91,17 +91,26 @@ pipeline {
                 }
             }
         }
+        
+stage('Check Docker Compose') {
+    steps {
+        script {
+            sh 'docker-compose --version'
+        }
+    }
+}
 
-        stage('Building Docker Images') {
+       stage('Building Docker Images') {
     steps {
         script {
             dir('backend') {  
                 echo "🚀 Build des images Docker..."
-                sh 'docker-compose build'
+                sh 'docker-compose -f docker-compose.yml build'
             }
         }
     }
 }
+
 
 
         stage('Run Application') {
