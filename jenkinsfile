@@ -74,7 +74,7 @@ pipeline {
             dir('backend') {
                 sh 'npm install --save-dev jest-junit' // ✅ Ajoute cette ligne avant d'exécuter les tests
                 timeout(time: 5, unit: 'MINUTES') {
-                    sh 'npm test -- --ci --reporters=default --reporters=jest-junit'
+                    sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit'
                 }
             }
         }
