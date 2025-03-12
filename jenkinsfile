@@ -45,25 +45,28 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                script {
-                    def scannerHome = tool 'SonarQubeScanner' // Vérifie que le scanner est bien configuré dans Jenkins
-                    withSonarQubeEnv('SonarQube') {
-                        dir('backend') {
-                            echo "🔍 Exécution de l'analyse SonarQube..."
-                            sh """
-                                ${scannerHome}/bin/sonar-scanner \
-                                -Dsonar.projectKey=projectpi \
-                                -Dsonar.sources=. \
-                                -Dsonar.host.url=http://192.168.33.10:9000 \
-                                -Dsonar.login=$SONAR_TOKEN
-                            """
+                    stage('SonarQube Analysis') {
+                steps {
+                    script {
+                        def scannerHome = tool 'SonarQubeScanner'
+                        withSonarQubeEnv('SonarQube') {
+                            dir('backend') {
+                                echo "🚀 Démarrage de l'analyse SonarQube..."
+                                timeout(time: 10, unit: 'MINUTES') { // Augmente le timeout
+                                    sh """
+                                        ${scannerHome}/bin/sonar-scanner \
+                                        -Dsonar.projectKey=projectpi \
+                                        -Dsonar.sources=. \
+                                        -Dsonar.host.url=http://192.168.33.10:9000 \
+                                        -Dsonar.login=${SONAR_TOKEN} \
+                                        -Dsonar.verbose=true
+                                    """
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
 
         stage('Unit Test Backend') {
             steps {
