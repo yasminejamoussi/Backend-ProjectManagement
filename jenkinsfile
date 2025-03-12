@@ -1,0 +1,114 @@
+pipeline {
+    agent any
+
+    environment {
+        BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
+        FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                script {
+                    sh 'rm -rf *' // Nettoyage de l'espace de travail
+
+                    echo "📥 Clonage du Backend..."
+                    sh "git clone ${BACKEND_REPO} backend"
+
+                    echo "📥 Clonage du Frontend..."
+                    sh "git clone ${FRONTEND_REPO} frontend"
+                }
+            }
+        }
+
+        stage('Install Frontend Dependencies') {
+            steps {
+                script {
+                    dir('frontend') {
+                        sh 'npm install'
+                    }
+                }
+            }
+        }
+
+        stage('Install Backend Dependencies') {
+            steps {
+                script {
+                    dir('backend') {
+                        sh 'npm install'
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'scanner' // Assurez-vous que 'scanner' est configuré dans Jenkins
+                    withSonarQubeEnv('SonarQube') {
+                        dir('backend') {
+                            sh "${scannerHome}/bin/sonar-scanner"
+                        }
+                        dir('frontend') {
+                            sh "${scannerHome}/bin/sonar-scanner"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Unit Test Backend') {
+            steps {
+                script {
+                    dir('backend') {
+                        timeout(time: 5, unit: 'MINUTES') {
+                            sh 'npm test -- --ci --reporters=default --reporters=jest-junit'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                script {
+                    dir('frontend') {
+                        sh 'npm run build'
+                    }
+                }
+            }
+        }
+
+        stage('Building Docker Images') {
+            steps {
+                script {
+                    echo "🚀 Build des images Docker..."
+                    sh 'docker-compose build'
+                }
+            }
+        }
+
+        stage('Run Application') {
+            steps {
+                script {
+                    echo "🚀 Démarrage des services avec Docker Compose..."
+                    timeout(time: 5, unit: 'MINUTES') {
+                        sh 'docker-compose up -d'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Pipeline exécuté avec succès !'
+        }
+        failure {
+            echo '❌ Le pipeline a échoué. Vérifiez les logs.'
+        }
+        always {
+            junit 'backend/test-results.xml'
+        }
+    }
+}

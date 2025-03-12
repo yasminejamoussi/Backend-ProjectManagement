@@ -9,4 +9,5 @@ router.put('/tasks/:id', taskController.updateTask);
 router.delete('/tasks/:id', taskController.deleteTask);
 router.post('/prioritize', taskController.prioritizeTask);
 router.get("/productivity/:projectId", taskController.getProductivity);
+router.post('/tasks/predict-duration', taskController.predictTaskDuration);
 module.exports = router;

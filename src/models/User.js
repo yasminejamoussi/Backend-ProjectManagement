@@ -26,7 +26,7 @@ const UserSchema = new mongoose.Schema(
     resetCode: { type: String },
     resetCodeExpires: { type: Date },
     faceLabel: { type: String },
-    isTwoFactorEnabled: { type: Boolean, default: false },
+    isTwoFactorEnabled: { type: Boolean, default: true },
     twoFactorSecret: { type: String },
     twoFactorTempSecret: { type: String },
     profileImage: { type: String, default: "" },

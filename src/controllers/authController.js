@@ -112,7 +112,7 @@ exports.generate2FA = async (req, res) => {
   exports.verify2FA = async (req, res) => {
     try {
       const { email, token } = req.body;
-      const user = await User.findOne({ email });
+      const user = await User.findOne({ email }).populate('role');
       if (!user || !user.isTwoFactorEnabled) {
         return res.status(400).json({ message: "2FA non activé pour cet utilisateur." });
       }
@@ -131,7 +131,7 @@ exports.generate2FA = async (req, res) => {
   
       // Générer un token JWT après validation
       const authToken = jwt.sign(
-        { id: user._id, role: user.role },
+        { id: user._id, role: user.role.name },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN }
       );
@@ -142,7 +142,6 @@ exports.generate2FA = async (req, res) => {
       res.status(500).json({ message: "Erreur serveur" });
     }
   };
-  
 // Register a new user
 exports.register = async (req, res) => {
     try {
@@ -523,7 +522,7 @@ exports.getUsers = async (req, res) => {
     }
   };
   
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
 
   // Mettre à jour un utilisateur

@@ -317,3 +317,55 @@ exports.getProductivity = async (req, res) => {
     res.status(500).json({ message: "Erreur lors du calcul de la productivité par projet" });
   }
 };
+
+exports.predictTaskDuration = async (req, res) => {
+  const { title, description, status, priority, assignedTo, project, startDate } = req.body;
+
+  if (!title || !description || !status || !priority || !assignedTo || !project || !startDate) {
+    return res.status(400).json({ error: "Toutes les informations de la tâche sont nécessaires." });
+  }
+
+  try {
+    const pythonScriptPath = path.join(__dirname, '..', 'scripts', 'task_duration_predictor.py');
+    const pythonProcess = spawn('python', [pythonScriptPath, title, description, status, priority, assignedTo.join(','), project, startDate]);
+
+    let stdoutData = '';
+    let stderrData = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      stdoutData += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      stderrData += data.toString();
+    });
+
+    pythonProcess.on('close', (code) => {
+      console.log("Script Python terminé avec code:", code);
+      
+      if (code !== 0) {
+        console.error("Erreur Python:", stderrData);
+        return res.status(500).json({ error: `Erreur dans l'exécution du script Python: ${stderrData || 'Code de sortie non nul'}` });
+      }
+
+      const predictedDuration = parseInt(stdoutData.trim());
+      console.log("Sortie Python:", predictedDuration);
+
+      if (isNaN(predictedDuration)) {
+        return res.status(500).json({ error: "Durée prédite non valide." });
+      }
+
+      const startDateObj = new Date(startDate);
+      const dueDate = new Date(startDateObj);
+      dueDate.setDate(startDateObj.getDate() + predictedDuration);
+
+      return res.json({
+        predictedDuration,
+        estimatedDueDate: dueDate.toISOString()
+      });
+    });
+  } catch (error) {
+    console.error("Erreur serveur:", error);
+    return res.status(500).json({ error: "Erreur interne du serveur." });
+  }
+};

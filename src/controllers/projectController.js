@@ -2,7 +2,21 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const Task = require('../models/Task');
+const { predictDelay } = require('../utils/PrjctDelayPrediction');
 
+
+exports.predictDelay = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id).populate('tasks');
+    if (!project) return res.status(404).json({ message: "Projet non trouvé" });
+
+    const prediction = predictDelay(project);
+    res.json(prediction);
+  } catch (error) {
+    console.error("Erreur lors de la prédiction du retard :", error);
+    res.status(500).json({ error: error.message });
+  }
+};
 // Create Project
 exports.createProject = async (req, res) => {
   try {

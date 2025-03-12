@@ -2,14 +2,14 @@ const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
-const { googleAuth,sendResetCode,verifyResetCode,resetPassword ,loginWithFace ,generate2FA,generateStrongPassword,login} = require('../controllers/authController');
+const {register,registerFaceLabel, googleAuth,sendResetCode,verifyResetCode,resetPassword ,loginWithFace ,generate2FA,generateStrongPassword,login} = require('../controllers/authController');
 
 // Auth Routes
-router.post("/register", userController.register);
+router.post("/register", register);
 router.post("/login", login);
 router.get("/google", googleAuth);
 router.post('/login-with-face',loginWithFace );
-router.post("/register-face-label", userController.registerFaceLabel);
+router.post("/register-face-label", registerFaceLabel);
 
 // Password Reset Routes
 router.post("/forgot-password", sendResetCode);
