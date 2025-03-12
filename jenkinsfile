@@ -132,7 +132,7 @@ stage('Check Docker Compose') {
         }
         always {
             echo "📂 Nettoyage de l'espace de travail après exécution..."
-            cleanWs() // Nettoie le workspace après le pipeline
+           // cleanWs() // Nettoie le workspace après le pipeline
         }
     }
 }
