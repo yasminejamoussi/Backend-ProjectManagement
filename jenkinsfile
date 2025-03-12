@@ -48,8 +48,8 @@ pipeline {
                     stage('SonarQube Analysis') {
                 steps {
                     script {
-                        def scannerHome = tool 'SonarQubeScanner'
-                        withSonarQubeEnv('SonarQubeScanner') {
+                        def scannerHome = tool 'scanner'
+                        withSonarQubeEnv('scanner') {
                             dir('backend') {
                                 echo "🚀 Démarrage de l'analyse SonarQube..."
                                 timeout(time: 10, unit: 'MINUTES') { // Augmente le timeout
