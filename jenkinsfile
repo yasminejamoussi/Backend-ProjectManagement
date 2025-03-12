@@ -96,9 +96,9 @@ pipeline {
        stage('Building Docker Images') {
     steps {
         script {
-            dir('backend') {  // Change vers le dossier contenant docker-compose.yml
-               sh 'docker-compose -f docker-compose.yml build'
-            }
+         
+               sh 'docker-compose -f docker-compose.yaml build'
+            
         }
     }
 }
