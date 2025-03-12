@@ -93,13 +93,16 @@ pipeline {
         }
 
         stage('Building Docker Images') {
-            steps {
-                script {
-                    echo "🚀 Build des images Docker..."
-                    sh 'docker-compose build' // 🔹 Pas besoin de spécifier "-f docker-compose.yaml" si ton fichier est bien nommé "docker-compose.yml"
-                }
+    steps {
+        script {
+            dir('Backend-ProjectManagement') {  // 🔹 Assure-toi d'être dans le dossier où se trouve docker-compose.yml
+                echo "🚀 Build des images Docker..."
+                sh 'docker-compose build'
             }
         }
+    }
+}
+
 
         stage('Run Application') {
             steps {
