@@ -4,13 +4,15 @@ pipeline {
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
+        SONAR_TOKEN = credentials('sonarqube-token') // Récupération du token depuis Jenkins
     }
 
     stages {
         stage('Checkout Code') {
             steps {
                 script {
-                    sh 'rm -rf *' // Nettoyage de l'espace de travail
+                    echo "🧹 Nettoyage de l'espace de travail..."
+                    cleanWs()
 
                     echo "📥 Clonage du Backend..."
                     sh "git clone ${BACKEND_REPO} backend"
@@ -25,6 +27,7 @@ pipeline {
             steps {
                 script {
                     dir('frontend') {
+                        echo "📦 Installation des dépendances du frontend..."
                         sh 'npm install'
                     }
                 }
@@ -35,18 +38,28 @@ pipeline {
             steps {
                 script {
                     dir('backend') {
+                        echo "📦 Installation des dépendances du backend..."
                         sh 'npm install'
                     }
                 }
             }
         }
 
-         stage('SonarQube Analysis') {
+        stage('SonarQube Analysis') {
             steps {
                 script {
-                    def scannerHome = tool 'scanner' // Assurez-vous que 'scanner' est configuré dans Jenkins
-                    withSonarQubeEnv {
-                        sh "${scannerHome}/bin/sonar-scanner"
+                    def scannerHome = tool 'SonarQubeScanner' // Vérifie que le scanner est bien configuré dans Jenkins
+                    withSonarQubeEnv('SonarQube') {
+                        dir('backend') {
+                            echo "🔍 Exécution de l'analyse SonarQube..."
+                            sh """
+                                ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=projectpi \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=http://192.168.33.10:9000 \
+                                -Dsonar.login=$SONAR_TOKEN
+                            """
+                        }
                     }
                 }
             }
@@ -56,6 +69,7 @@ pipeline {
             steps {
                 script {
                     dir('backend') {
+                        echo "🧪 Exécution des tests unitaires du backend..."
                         timeout(time: 5, unit: 'MINUTES') {
                             sh 'npm test -- --ci --reporters=default --reporters=jest-junit'
                         }
@@ -68,6 +82,7 @@ pipeline {
             steps {
                 script {
                     dir('frontend') {
+                        echo "🛠️ Construction du frontend..."
                         sh 'npm run build'
                     }
                 }
@@ -103,7 +118,8 @@ pipeline {
             echo '❌ Le pipeline a échoué. Vérifiez les logs.'
         }
         always {
-            junit 'backend/test-results.xml'
+            echo "📂 Nettoyage de l'espace de travail après exécution..."
+            cleanWs() // Nettoie le workspace après le pipeline
         }
     }
 }
