@@ -48,7 +48,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    def scannerHome = tool 'scanner' // Vérifie que le scanner est bien configuré dans Jenkins
+                    def scannerHome = tool 'SonarQubeScanner' // Vérifie que le scanner est bien configuré dans Jenkins
                     withSonarQubeEnv('SonarQube') {
                         dir('backend') {
                             echo "🔍 Exécution de l'analyse SonarQube..."
