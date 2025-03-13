@@ -14,11 +14,18 @@ pipeline {
                     echo "🧹 Nettoyage de l'espace de travail..."
                     cleanWs()
 
+                      // Configurer le buffer Git
+            sh "git config --global http.postBuffer 524288000"
+            sh "git config --global https.postBuffer 524288000"
+
                     echo "📥 Clonage du Backend..."
                     sh "git clone ${BACKEND_REPO} backend"
 
                     echo "📥 Clonage du Frontend..."
-                    sh "git clone ${FRONTEND_REPO} frontend"
+                  //  sh "git clone ${FRONTEND_REPO} frontend"
+                  retry(3) {
+                sh script: "git clone --progress --verbose ${FRONTEND_REPO} frontend", returnStdout: true
+            }
                 }
             }
         }
