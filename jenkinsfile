@@ -123,7 +123,7 @@ pipeline {
         }
     }
 
-   post {
+post {
         success {
             echo '✅ Pipeline exécuté avec succès !'
         }
@@ -131,7 +131,7 @@ pipeline {
             echo '❌ Le pipeline a échoué. Vérifiez les logs.'
         }
         always {
-            node { // 🔹 Ajout d'un bloc node explicite pour cleanWs
+            node('any') { // 🔹 Ajout d'un label 'any' pour utiliser n'importe quel agent disponible
                 echo "📂 Nettoyage de l'espace de travail après exécution..."
                 cleanWs() // Nettoie le workspace après le pipeline
             }
