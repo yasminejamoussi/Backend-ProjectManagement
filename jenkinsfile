@@ -131,10 +131,8 @@ pipeline {
             echo '❌ Le pipeline a échoué. Vérifiez les logs.'
         }
         always {
-            node { // 🔹 Added node block for cleanWs
-                echo "📂 Nettoyage de l'espace de travail après exécution..."
-                cleanWs() // Nettoie le workspace après le pipeline
-            }
+            echo "📂 Nettoyage de l'espace de travail après exécution..."
+            cleanWs() // Nettoie le workspace après le pipeline
         }
     }
 }
