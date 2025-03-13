@@ -131,7 +131,7 @@ post {
             echo '❌ Le pipeline a échoué. Vérifiez les logs.'
         }
         always {
-            node('master') { // 🔹 Ajout d'un label 'any' pour utiliser n'importe quel agent disponible
+            node('Built-In Node') { // 🔹 Ajout d'un label 'any' pour utiliser n'importe quel agent disponible
                 echo "📂 Nettoyage de l'espace de travail après exécution..."
                 cleanWs() // Nettoie le workspace après le pipeline
             }
