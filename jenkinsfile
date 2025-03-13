@@ -130,9 +130,11 @@ stage('Check Docker Compose') {
         failure {
             echo '❌ Le pipeline a échoué. Vérifiez les logs.'
         }
-        always {
-            echo "📂 Nettoyage de l'espace de travail après exécution..."
-            cleanWs() // Nettoie le workspace après le pipeline
+       always {
+            node('master') { // 🔹 Ajout du bloc node avec le label 'master'
+                echo "📂 Nettoyage de l'espace de travail après exécution..."
+                cleanWs()
+            }
         }
     }
 }
