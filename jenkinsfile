@@ -8,6 +8,13 @@ pipeline {
     }
 
     stages {
+        stage('Debug Credentials') {
+            steps {
+                script {
+                    echo "SonarQube Token récupéré: ${SONAR_TOKEN}"
+                }
+            }
+        }
         stage('Checkout Code') {
             steps {
                 script {
