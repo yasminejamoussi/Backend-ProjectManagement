@@ -12,7 +12,7 @@ pipeline {
             steps {
                 script {
                     echo "🧹 Nettoyage de l'espace de travail..."
-                    // Moved cleanWs to post section to avoid race conditions
+                    cleanWs()
 
                     echo "📥 Clonage du Backend..."
                     sh "git clone ${BACKEND_REPO} backend"
@@ -49,10 +49,10 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool 'scanner' // 🔹 Assurez-vous que le scanner est bien configuré
-                    withSonarQubeEnv('SonarQubeServer') { // 🔹 Match this with your configured SonarQube server name
+                    withSonarQubeEnv('scanner') {
                         dir('backend') {
                             echo "🚀 Démarrage de l'analyse SonarQube..."
-                            timeout(time: 10, unit: 'MINUTES') {
+                            timeout(time: 10, unit: 'MINUTES') { // Augmente le timeout
                                 sh """
                                     ${scannerHome}/bin/sonar-scanner \
                                     -Dsonar.projectKey=projectpi \
@@ -92,38 +92,38 @@ pipeline {
             }
         }
 
-        stage('Check Docker Compose') {
-            steps {
-                script {
-                    sh 'docker-compose --version || echo "Docker Compose not found"'
-                }
-            }
+stage('Check Docker Compose') {
+    steps {
+        script {
+            sh 'docker-compose --version'
         }
+    }
+}
 
-        stage('Building Docker Images') {
-            steps {
-                script {
-                    dir('backend') {
-                        echo "🚀 Build des images Docker..."
-                        sh 'docker-compose -f docker-compose.yml build || exit 1'
-                    }
-                }
+       stage('Building Docker Images') {
+    steps {
+        script {
+            dir('backend') {  
+                echo "🚀 Build des images Docker..."
+                sh 'docker-compose -f docker-compose.yaml build'
             }
         }
+    }
+}
+
+
 
         stage('Run Application') {
             steps {
                 script {
                     echo "🚀 Démarrage de l'application..."
-                    timeout(time: 5, unit: 'MINUTES') {
-                        sh 'docker-compose up -d || exit 1'
-                    }
+                    sh 'docker-compose up -d'
                 }
             }
         }
     }
 
-post {
+    post {
         success {
             echo '✅ Pipeline exécuté avec succès !'
         }
@@ -131,10 +131,8 @@ post {
             echo '❌ Le pipeline a échoué. Vérifiez les logs.'
         }
         always {
-            node('Built-In Node') { // 🔹 Ajout d'un label 'any' pour utiliser n'importe quel agent disponible
-                echo "📂 Nettoyage de l'espace de travail après exécution..."
-                cleanWs() // Nettoie le workspace après le pipeline
-            }
+            echo "📂 Nettoyage de l'espace de travail après exécution..."
+            cleanWs() // Nettoie le workspace après le pipeline
         }
     }
 }
