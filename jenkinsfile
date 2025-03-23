@@ -68,8 +68,10 @@ pipeline {
                      {
                         dir('backend') {
                             echo "🚀 Démarrage de l'analyse SonarQube..."
-                            timeout(time: 10, unit: 'MINUTES') { // Augmente le timeout
+                            timeout(time: 15, unit: 'MINUTES') { // Augmente le timeout
                                 sh """
+                                    export SONAR_SCANNER_OPTS="-Xmx4g"
+                                    export NODE_OPTIONS="--max-old-space-size=4096"
                                     ${scannerHome}/bin/sonar-scanner \
                                     -Dsonar.projectKey=projectpi \
                                     -Dsonar.sources=. \
