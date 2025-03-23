@@ -53,14 +53,16 @@ pipeline {
                         dir('backend') {
                             echo "🚀 Démarrage de l'analyse SonarQube..."
                             timeout(time: 10, unit: 'MINUTES') { // Augmente le timeout
-                                sh """
-                                    ${scannerHome}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=projectpi \
-                                    -Dsonar.sources=. \
-                                    -Dsonar.host.url=http://192.168.33.10:9000 \
-                                    -Dsonar.login=${SONAR_TOKEN} \
-                                    -Dsonar.verbose=true
-                                """
+                             sh """
+                                ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=projectpi \
+                                -Dsonar.sources=src \
+                                -Dsonar.exclusions=**/node_modules/**,**/ *.test.js,**/coverage/** \
+                                -Dsonar.host.url=http://192.168.33.10:9000 \
+                                -Dsonar.login=${SONAR_TOKEN} \
+                                -Dsonar.javascript.node.maxspace=4096 \
+                                -Dsonar.verbose=true
+                              """
                             }
                         }
                     }
