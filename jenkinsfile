@@ -4,7 +4,7 @@ pipeline {
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
-        SONAR_TOKEN = credentials('sonarqube-token') // 🔹 Récupération du token depuis Jenkins
+        SONAR_TOKEN = credentials('sonarqube-token')
     }
 
     stages {
@@ -13,10 +13,8 @@ pipeline {
                 script {
                     echo "🧹 Nettoyage de l'espace de travail..."
                     cleanWs()
-
                     echo "📥 Clonage du Backend..."
                     sh "git clone ${BACKEND_REPO} backend"
-
                     echo "📥 Clonage du Frontend..."
                     sh "git clone ${FRONTEND_REPO} frontend"
                 }
@@ -25,22 +23,18 @@ pipeline {
 
         stage('Install Frontend Dependencies') {
             steps {
-                script {
-                    dir('frontend') {
-                        echo "📦 Installation des dépendances du frontend..."
-                        sh 'npm install'
-                    }
+                dir('frontend') {
+                    echo "📦 Installation des dépendances du frontend..."
+                    sh 'npm install'
                 }
             }
         }
 
         stage('Install Backend Dependencies') {
             steps {
-                script {
-                    dir('backend') {
-                        echo "📦 Installation des dépendances du backend..."
-                        sh 'npm install'
-                    }
+                dir('backend') {
+                    echo "📦 Installation des dépendances du backend..."
+                    sh 'npm install'
                 }
             }
         }
@@ -48,21 +42,23 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    def scannerHome = tool 'scanner' // 🔹 Assurez-vous que le scanner est bien configuré
+                    def scannerHome = tool 'scanner'
                     withSonarQubeEnv('scanner') {
                         dir('backend') {
                             echo "🚀 Démarrage de l'analyse SonarQube..."
-                            timeout(time: 10, unit: 'MINUTES') { // Augmente le timeout
-                             sh """
-                                ${scannerHome}/bin/sonar-scanner \
-                                -Dsonar.projectKey=projectpi \
-                                -Dsonar.sources=src \
-                                -Dsonar.exclusions=**/node_modules/**,**/ *.test.js,**/coverage/** \
-                                -Dsonar.host.url=http://192.168.33.10:9000 \
-                                -Dsonar.login=${SONAR_TOKEN} \
-                                -Dsonar.javascript.node.maxspace=4096 \
-                                -Dsonar.verbose=true
-                              """
+                            timeout(time: 15, unit: 'MINUTES') {
+                                withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
+                                    sh """
+                                        ${scannerHome}/bin/sonar-scanner \
+                                        -Dsonar.projectKey=projectpi \
+                                        -Dsonar.sources=src \
+                                        -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/** \
+                                        -Dsonar.host.url=http://192.168.33.10:9000 \
+                                        -Dsonar.login=\${SONAR_LOGIN} \
+                                        -Dsonar.javascript.node.maxspace=4096 \
+                                        -Dsonar.verbose=true
+                                    """
+                                }
                             }
                         }
                     }
@@ -72,12 +68,10 @@ pipeline {
 
         stage('Unit Test Backend') {
             steps {
-                script {
-                    dir('backend') {
-                        sh 'npm install --save-dev jest-junit' // 🔹 Ajoute cette ligne avant d'exécuter les tests
-                        timeout(time: 5, unit: 'MINUTES') {
-                            sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit'
-                        }
+                dir('backend') {
+                    sh 'npm install --save-dev jest-junit'
+                    timeout(time: 5, unit: 'MINUTES') {
+                        sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit'
                     }
                 }
             }
@@ -85,42 +79,32 @@ pipeline {
 
         stage('Build Frontend') {
             steps {
-                script {
-                    dir('frontend') {
-                        echo "🛠️ Construction du frontend..."
-                        sh 'npm run build'
-                    }
+                dir('frontend') {
+                    echo "🛠️ Construction du frontend..."
+                    sh 'npm run build'
                 }
             }
         }
 
-stage('Check Docker Compose') {
-    steps {
-        script {
-            sh 'docker-compose --version'
-        }
-    }
-}
-
-       stage('Building Docker Images') {
-    steps {
-        script {
-            dir('backend') {  
-                echo "🚀 Build des images Docker..."
-                sh 'docker-compose -f docker-compose.yaml build'
+        stage('Check Docker Compose') {
+            steps {
+                sh 'docker-compose --version'
             }
         }
-    }
-}
 
-
+        stage('Building Docker Images') {
+            steps {
+                dir('backend') {
+                    echo "🚀 Build des images Docker..."
+                    sh 'docker-compose -f docker-compose.yaml build'
+                }
+            }
+        }
 
         stage('Run Application') {
             steps {
-                script {
-                    echo "🚀 Démarrage de l'application..."
-                    sh 'docker-compose up -d'
-                }
+                echo "🚀 Démarrage de l'application..."
+                sh 'docker-compose up -d'
             }
         }
     }
@@ -134,7 +118,7 @@ stage('Check Docker Compose') {
         }
         always {
             echo "📂 Nettoyage de l'espace de travail après exécution..."
-            cleanWs() // Nettoie le workspace après le pipeline
+            cleanWs()
         }
     }
 }
