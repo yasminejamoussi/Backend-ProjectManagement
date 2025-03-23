@@ -92,7 +92,7 @@ pipeline {
             }
         }
 
-        sstage('Debug Directory') {
+        stage('Debug Directory') {
             steps {
                 echo "📂 Contenu de la racine :"
                 sh 'ls -la'
