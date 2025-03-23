@@ -92,19 +92,36 @@ pipeline {
             }
         }
 
+        sstage('Debug Directory') {
+            steps {
+                echo "📂 Contenu de la racine :"
+                sh 'ls -la'
+                dir('backend') {
+                    echo "📂 Contenu de backend :"
+                    sh 'ls -la'
+                }
+                dir('frontend') {
+                    echo "📂 Contenu de frontend :"
+                    sh 'ls -la'
+                }
+            }
+        }
+
         stage('Building Docker Images') {
             steps {
-                dir('backend') {
+                script {
                     echo "🚀 Build des images Docker..."
-                    sh 'docker-compose -f docker-compose.yaml build'
+                    sh 'docker-compose -f backend/docker-compose.yaml build'
                 }
             }
         }
 
         stage('Run Application') {
             steps {
-                echo "🚀 Démarrage de l'application..."
-                sh 'docker-compose up -d'
+                script {
+                    echo "🚀 Démarrage de l'application..."
+                    sh 'docker-compose -f backend/docker-compose.yaml up -d'
+                }
             }
         }
     }
