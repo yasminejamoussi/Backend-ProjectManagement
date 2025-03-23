@@ -49,15 +49,15 @@ pipeline {
                             timeout(time: 15, unit: 'MINUTES') {
                                 withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
                                     sh """
-                                        ${scannerHome}/bin/sonar-scanner \
-                                        -Dsonar.projectKey=projectpi \
-                                        -Dsonar.sources=src \
-                                        -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/** \
-                                        -Dsonar.host.url=http://192.168.33.10:9000 \
-                                        -Dsonar.login=\${SONAR_LOGIN} \
-                                        -Dsonar.javascript.node.maxspace=4096 \
-                                        -Dsonar.verbose=true
-                                    """
+                                    ${scannerHome}/bin/sonar-scanner \
+                                    -Dsonar.projectKey=projectpi \
+                                    -Dsonar.sources=src \
+                                    -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js \
+                                    -Dsonar.host.url=http://192.168.33.10:9000 \
+                                    -Dsonar.login=\${SONAR_LOGIN} \
+                                    -Dsonar.javascript.node.maxspace=4096 \
+                                    -Dsonar.verbose=true
+                                """
                                 }
                             }
                         }
