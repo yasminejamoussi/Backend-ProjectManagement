@@ -62,10 +62,9 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    //def scannerHome = tool 'scanner' // 🔹 Assurez-vous que le scanner est bien configuré
-                    //withSonarQubeEnv('scanner')
-                      def scannerHome = tool 'sonarqube-token' // 🔹 Assurez-vous que le scanner est bien configuré
-                    withSonarQubeEnv('sonarqube-token')
+                    def scannerHome = tool 'scanner' // 🔹 Assurez-vous que le scanner est bien configuré
+                    withSonarQubeEnv('scanner')
+                    
                      {
                         dir('backend') {
                             echo "🚀 Démarrage de l'analyse SonarQube..."
