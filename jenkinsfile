@@ -4,18 +4,15 @@ pipeline {
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
-        //SONAR_TOKEN = credentials('sonarqube-token') // 🔹 Récupération du token depuis Jenkins
+        SONAR_TOKEN = credentials('sonarqube-token') // 🔹 Récupération du token depuis Jenkins
     }
 
     stages {
         stage('Debug Credentials') {
             steps {
                 script {
-                   // echo "SonarQube Token récupéré: ${SONAR_TOKEN}"
-                   // Use withCredentials to securely access the token
-                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                        echo "SonarQube Token récupéré: ${SONAR_TOKEN}" // This will be masked as **** in logs
-                    }
+                    echo "SonarQube Token récupéré: ${SONAR_TOKEN}"
+                  
                 }
             }
         }
