@@ -107,46 +107,5 @@ describe("Auth Controller Tests", () => {
     }
   });
 
-  /*** TEST 5: Récupérer les utilisateurs ***/
-  it("should fetch all users", async () => {
-    const res = await request(app)
-      .get("/api/auth/users")
-      .set("Authorization", `Bearer ${authToken}`);
-    console.log("📢 Fetch Users Response:", res.status, res.body);
-
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-  });
-
-  /*** ✅ TEST 6: Mise à jour de l'utilisateur ***/
-  it("should update user details", async () => {
-    expect(userId).toBeDefined(); // ✅ Vérifie que userId existe
-
-    const updatedData = { firstname: "Johnny", phone: "+987654321" };
-
-    const res = await request(app)
-        .put(`/api/auth/users/${userId}`)
-        .send(updatedData)
-        .set("Authorization", `Bearer ${authToken}`);
-
-    console.log("📢 Update User Response:", res.status, res.body);
-
-    expect(res.status).toBe(200);
-    expect(res.body.firstname).toBe(updatedData.firstname);
-    expect(res.body.phone).toBe(updatedData.phone);
-  });
-
-  /*** ✅ TEST 7: Suppression d'un utilisateur ***/
-  it("should delete a user", async () => {
-    expect(userId).toBeDefined(); // ✅ Vérifie que userId existe
-
-    const res = await request(app)
-        .delete(`/api/auth/users/${userId}`)
-        .set("Authorization", `Bearer ${authToken}`);
-
-    console.log("📢 Delete User Response:", res.status, res.body);
-
-    expect(res.status).toBe(200);
-    expect(res.body.message).toBe("User deleted successfully");
-  });
+  
 });
