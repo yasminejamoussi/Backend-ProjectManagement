@@ -4,7 +4,7 @@ pipeline {
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
-        SONAR_TOKEN = credentials('sonarqube-token-new') // 🔹 Récupération du token depuis Jenkins
+        SONAR_TOKEN = credentials('sonarqube-token') // 🔹 Récupération du token depuis Jenkins
     }
 
     stages {
@@ -12,7 +12,6 @@ pipeline {
             steps {
                 script {
                     echo "SonarQube Token récupéré: ${SONAR_TOKEN}"
-                  
                 }
             }
         }
@@ -86,36 +85,35 @@ pipeline {
                 }
             }
         }*/
-      stage('SonarQube Analysis') {
-            steps {
-                script {
-                    def scannerHome = tool 'scanner'
-                    withSonarQubeEnv('sonarqube') {
-                        dir('backend') {
-                            echo "🚀 Démarrage de l'analyse SonarQube..."
-                            // Add debugging steps
-                            sh "echo 'SonarQube Server URL: ${env.SONAR_HOST_URL}'"
-                            sh "curl -s http://192.168.33.10:9000 || echo 'ERROR: Cannot reach SonarQube server'"
-                            timeout(time: 15, unit: 'MINUTES') {
-                                // Use withCredentials to securely access the token
-                                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                                    sh """
-                                        ${scannerHome}/bin/sonar-scanner \
-                                        -Dsonar.projectKey=projectpi \
-                                        -Dsonar.sources=src \
-                                        -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js \
-                                        -Dsonar.host.url=http://192.168.33.10:9000 \
-                                        -Dsonar.login=${SONAR_TOKEN} \
-                                        -Dsonar.javascript.node.maxspace=4096 \
-                                        -Dsonar.verbose=true
-                                    """
-                                }
-                            }
+         stage('SonarQube Analysis') {
+    steps {
+        script {
+            def scannerHome = tool 'scanner'
+            withSonarQubeEnv('sonarqube') { // Changed from 'scanner' to 'sonarqube'
+                dir('backend') {
+                    echo "🚀 Démarrage de l'analyse SonarQube..."
+                    // Add debugging steps
+                    sh "echo 'SonarQube Server URL: ${env.SONAR_HOST_URL}'"
+                    sh "echo 'SonarQube Token: ${SONAR_TOKEN}'"
+                    sh "curl -s http://192.168.33.10:9000 || echo 'ERROR: Cannot reach SonarQube server'"
+                    timeout(time: 15, unit: 'MINUTES') {
+                        withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
+                            sh """
+                                ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=projectpi \
+                                -Dsonar.sources=src \
+                                -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js \
+                                -Dsonar.host.url=http://192.168.33.10:9000 \
+                                -Dsonar.login=\${SONAR_LOGIN} \
+                                -Dsonar.javascript.node.maxspace=4096 \
+                                -Dsonar.verbose=true
+                            """
                         }
                     }
                 }
             }
         }
+    }
 }
 
         stage('Unit Test Backend') {
