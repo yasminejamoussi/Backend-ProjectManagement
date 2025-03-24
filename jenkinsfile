@@ -4,7 +4,7 @@ pipeline {
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
-        SONAR_TOKEN = credentials('sonarqube-token') // 🔹 Récupération du token depuis Jenkins
+        SONAR_TOKEN = credentials('sonarqube-token-new') // 🔹 Récupération du token depuis Jenkins
     }
 
     stages {
