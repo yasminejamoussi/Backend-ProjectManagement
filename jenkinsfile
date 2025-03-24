@@ -89,7 +89,7 @@ pipeline {
     steps {
         script {
             def scannerHome = tool 'scanner'
-            withSonarQubeEnv('sonarqube-token') { // Changed from 'scanner' to 'sonarqube'
+            withSonarQubeEnv('sonarqube') { // Changed from 'scanner' to 'sonarqube'
                 dir('backend') {
                     echo "🚀 Démarrage de l'analyse SonarQube..."
                     // Add debugging steps
