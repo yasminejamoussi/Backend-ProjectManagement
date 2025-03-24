@@ -11,8 +11,6 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 script {
-                    echo "🧹 Nettoyage de l'espace de travail..."
-                    cleanWs()
                     echo "📥 Clonage du Backend..."
                     sh "git clone -b cicd ${BACKEND_REPO} backend"
                     echo "📥 Clonage du Frontend..."
@@ -20,7 +18,15 @@ pipeline {
                 }
             }
         }
-
+        stage('Verify Cloned Files') {
+            steps {
+                dir('backend') {
+                    echo "📂 Vérification des fichiers clonés dans backend :"
+                    sh 'ls -la'
+                    sh 'cat docker-compose.yaml || echo "docker-compose.yaml not found"'
+                }
+            }
+        }
         stage('Install Frontend Dependencies') {
             steps {
                 dir('frontend') {
