@@ -85,32 +85,36 @@ pipeline {
                 }
             }
         }*/
-           stage('SonarQube Analysis') {
-            steps {
-                script {
-                    def scannerHome = tool 'scanner'
-                    withSonarQubeEnv('scanner') {
-                        dir('backend') {
-                            echo "🚀 Démarrage de l'analyse SonarQube..."
-                            timeout(time: 15, unit: 'MINUTES') {
-                                withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
-                                    sh """
-                                    ${scannerHome}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=projectpi \
-                                    -Dsonar.sources=src \
-                                    -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js \
-                                    -Dsonar.host.url=http://192.168.33.10:9000 \
-                                    -Dsonar.login=\${SONAR_LOGIN} \
-                                    -Dsonar.javascript.node.maxspace=4096 \
-                                    -Dsonar.verbose=true
-                                """
-                                }
-                            }
+         stage('SonarQube Analysis') {
+    steps {
+        script {
+            def scannerHome = tool 'scanner'
+            withSonarQubeEnv('sonarqube-token') { // Changed from 'scanner' to 'sonarqube'
+                dir('backend') {
+                    echo "🚀 Démarrage de l'analyse SonarQube..."
+                    // Add debugging steps
+                    sh "echo 'SonarQube Server URL: ${env.SONAR_HOST_URL}'"
+                    sh "echo 'SonarQube Token: ${SONAR_TOKEN}'"
+                    sh "curl -s http://192.168.33.10:9000 || echo 'ERROR: Cannot reach SonarQube server'"
+                    timeout(time: 15, unit: 'MINUTES') {
+                        withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
+                            sh """
+                                ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=projectpi \
+                                -Dsonar.sources=src \
+                                -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js \
+                                -Dsonar.host.url=http://192.168.33.10:9000 \
+                                -Dsonar.login=\${SONAR_LOGIN} \
+                                -Dsonar.javascript.node.maxspace=4096 \
+                                -Dsonar.verbose=true
+                            """
                         }
                     }
                 }
             }
         }
+    }
+}
 
         stage('Unit Test Backend') {
             steps {
