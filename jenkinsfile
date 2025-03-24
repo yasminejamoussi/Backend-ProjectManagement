@@ -70,7 +70,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage des services Docker..."
-                    sh 'docker-compose -f backend/docker-compose.yaml up -d'
+                    sh 'docker-compose -f docker-compose.yaml up -d'
                 }
             }
         }
@@ -120,7 +120,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Build des images Docker..."
-                    sh 'docker-compose -f backend/docker-compose.yaml build'
+                    sh 'docker-compose -f docker-compose.yaml build'
                 }
             }
         }
@@ -129,7 +129,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage de l'application..."
-                    sh 'docker-compose -f backend/docker-compose.yaml up -d'
+                    sh 'docker-compose -f docker-compose.yaml up -d'
                 }
             }
         }
