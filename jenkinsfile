@@ -66,12 +66,21 @@ pipeline {
             }
         }
 
+       stage('Start Docker Services') {
+            steps {
+                script {
+                    echo "🚀 Démarrage des services Docker..."
+                    sh 'docker-compose -f backend/docker-compose.yaml up -d'
+                }
+            }
+        }
+
         stage('Unit Test Backend') {
             steps {
                 dir('backend') {
                     sh 'npm install --save-dev jest-junit'
-                    timeout(time: 5, unit: 'MINUTES') {
-                        sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit'
+                    timeout(time: 10, unit: 'MINUTES') {
+                        sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
                     }
                 }
             }
