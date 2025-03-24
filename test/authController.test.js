@@ -42,6 +42,21 @@ describe("Auth Controller Tests", () => {
     console.log("✅ MongoDB connecté !");
     
     await User.deleteMany({});
+    await Role.deleteMany({});
+
+        // Ajouter les rôles nécessaires
+        const adminRole = await Role.create({ name: "Admin", description: "Administrator role" });
+        const userRole = await Role.create({ name: "user", description: "Default user role" });
+        const guestRole = await Role.create({ name: "guest", description: "Guest role" });
+
+        console.log("📢 Rôles créés :");
+        console.log("Admin Role:", adminRole);
+        console.log("User Role:", userRole);
+        console.log("Guest Role:", guestRole);
+
+        // Vérifier que les rôles existent dans la base
+        const rolesInDb = await Role.find({});
+        console.log("📢 Rôles dans la base après création :", rolesInDb);
   });
 
   afterAll(async () => {
