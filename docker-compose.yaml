@@ -23,7 +23,7 @@ services:
       - "./frontend/public:/src/public"
 
   mongo:
-    image: mongo
+    image: mongo:6.0  # Spécifier une version exacte
     restart: always
     container_name: mongodb
     ports:
@@ -35,7 +35,7 @@ services:
       - db-data:/data/db
 
   mongo-test:  
-    image: mongo
+    image: mongo:6.0  # Spécifier une version exacte
     container_name: mongo-test
     ports:
       - "27018:27017"
@@ -47,4 +47,4 @@ services:
 
 volumes:
   db-data: {}
-  mongo-test-data: {}  
+  mongo-test-data: {}

@@ -91,13 +91,13 @@ pipeline {
                 }
             }
         }
-
-        stage('Check Docker Compose') {
+        stage('Install Docker Compose') {
             steps {
+                sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose'
+                sh 'chmod +x /usr/local/bin/docker-compose'
                 sh 'docker-compose --version'
             }
         }
-
         stage('Debug Directory') {
             steps {
                 echo "📂 Contenu de la racine :"
@@ -121,7 +121,6 @@ pipeline {
                 }
             }
         }
-
         stage('Run Application') {
             steps {
                 script {
