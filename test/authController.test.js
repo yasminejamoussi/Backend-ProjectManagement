@@ -18,7 +18,6 @@ const {
     register,
     login,
     getUsers: getUsers, // Renommer pour correspondre à l'export
-    getUserById,
     updateUser,
     deleteUser,
 } = require("../src/controllers/authController");
@@ -46,7 +45,6 @@ describe("Auth Controller Tests", () => {
         app.post("/api/auth/register", register);
         app.post("/api/auth/login", login);
         app.get("/api/auth/users", getUsers);
-        app.get("/api/auth/users/:id", getUserById);
         app.put("/api/auth/users/:id", updateUser);
         app.delete("/api/auth/users/:id", deleteUser);
     });
