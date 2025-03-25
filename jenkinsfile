@@ -12,18 +12,9 @@ pipeline {
             steps {
                 script {
                     echo "📥 Clonage du Backend..."
-                    sh "git clone -b cicd ${BACKEND_REPO} backend"
+                    sh "git clone ${BACKEND_REPO} backend"
                     echo "📥 Clonage du Frontend..."
                     sh "git clone ${FRONTEND_REPO} frontend"
-                }
-            }
-        }
-        stage('Verify Cloned Files') {
-            steps {
-                dir('backend') {
-                    echo "📂 Vérification des fichiers clonés dans backend :"
-                    sh 'ls -la'
-                    sh 'cat docker-compose.yaml || echo "docker-compose.yaml not found"'
                 }
             }
         }

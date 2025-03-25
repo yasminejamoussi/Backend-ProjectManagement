@@ -190,7 +190,7 @@ exports.register = async (req, res) => {
             phone,
             email,
             password,
-            role: guestRole._id, // Assigner le rôle "Guest" par défaut
+            role: guestRole._id, 
 
         });
         await user.save();
