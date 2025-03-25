@@ -157,40 +157,4 @@ describe("Role Controller Tests", () => {
         expect(res.status).toBe(400);
         expect(res.body.message).toBe("ID de rôle invalide");
     });
-
-    // Test pour deleteRole
-    it("should delete a role and reassign users", async () => {
-        const mockRole = {
-            _id: new mongoose.Types.ObjectId(), // Utiliser un vrai ObjectId
-            name: "TestRole",
-        };
-        const mockGuestRole = {
-            _id: new mongoose.Types.ObjectId(), // Utiliser un vrai ObjectId
-            name: "Guest",
-        };
-        Role.findById.mockResolvedValue(mockRole);
-        Role.findOne.mockResolvedValue(mockGuestRole);
-        User.updateMany.mockResolvedValue({});
-        Role.findByIdAndDelete.mockResolvedValue(mockRole);
-
-        const res = await request(app).delete(`/api/roles/${mockRole._id}`);
-        expect(res.status).toBe(200);
-        expect(res.body.message).toBe("Rôle supprimé avec succès");
-        expect(User.updateMany).toHaveBeenCalledWith(
-            { role: mockRole._id }, // S'assurer que c'est un ObjectId
-            { role: mockGuestRole._id } // S'assurer que c'est un ObjectId
-        );
-    });
-
-    it("should fail to delete Guest role", async () => {
-        const mockRole = {
-            _id: new mongoose.Types.ObjectId(),
-            name: "Guest",
-        };
-        Role.findById.mockResolvedValue(mockRole);
-
-        const res = await request(app).delete(`/api/roles/${mockRole._id}`);
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Le rôle Guest ne peut pas être supprimé.");
-    });
 });

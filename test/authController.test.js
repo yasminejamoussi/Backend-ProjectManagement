@@ -10,25 +10,12 @@ process.env.JWT_SECRET = "secret";
 const request = require("supertest");
 const express = require("express");
 const mongoose = require("mongoose");
-const nodemailer = require("nodemailer");
-const speakeasy = require("speakeasy");
-const qrcode = require("qrcode");
 const jwt = require("jsonwebtoken");
 const { spawn } = require("child_process");
 const {
-    generateStrongPassword,
-    generate2FA,
-    enable2FA,
-    verify2FA,
     register,
     login,
-    loginWithFaceID,
-    googleAuth,
-    registerFaceLabel,
-    sendResetCode,
-    verifyResetCode,
-    resetPassword,
-    getAllUsers,
+    getUsers,
     getUserById,
     updateUser,
     deleteUser,
@@ -56,7 +43,7 @@ describe("Auth Controller Tests", () => {
         app.use(express.json());
         app.post("/api/auth/register", register);
         app.post("/api/auth/login", login);
-        app.get("/api/auth/users", getAllUsers);
+        app.get("/api/auth/users", getUsers);
         app.get("/api/auth/users/:id", getUserById);
         app.put("/api/auth/users/:id", updateUser);
         app.delete("/api/auth/users/:id", deleteUser);
