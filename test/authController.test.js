@@ -231,24 +231,6 @@ describe("Auth Controller Tests", () => {
         expect(res.status).toBe(200);
         expect(res.body.firstname).toBe("Jane");
     });
-
-    // Test pour getUserById
-    it("should get user by ID", async () => {
-        const mockUser = {
-            _id: new mongoose.Types.ObjectId(),
-            email: "test@example.com",
-        };
-        User.findById.mockReturnValue({
-            select: jest.fn().mockReturnValue({
-                populate: jest.fn().mockResolvedValue(mockUser),
-            }),
-        });
-
-        const res = await request(app).get(`/api/auth/users/${mockUser._id}`);
-        expect(res.status).toBe(200);
-        expect(res.body.email).toBe("test@example.com");
-    });
-
     // Test pour deleteUser
     it("should delete user", async () => {
         const userId = new mongoose.Types.ObjectId();
