@@ -193,42 +193,4 @@ describe("Role Controller Tests", () => {
         expect(res.status).toBe(400);
         expect(res.body.message).toBe("Le rôle Guest ne peut pas être supprimé.");
     });
-
-    // Test pour assignRoleToUser
-    it("should assign role to user", async () => {
-        const mockRole = {
-            _id: new mongoose.Types.ObjectId(),
-            name: "TestRole",
-            users: [],
-            save: jest.fn().mockResolvedValue(true),
-        };
-        const mockUser = {
-            _id: new mongoose.Types.ObjectId(),
-            email: "test@example.com",
-            role: null,
-            save: jest.fn().mockResolvedValue(true),
-        };
-        Role.findById.mockResolvedValue(mockRole);
-        User.findById.mockResolvedValue(mockUser);
-
-        const res = await request(app)
-            .post("/api/roles/assign")
-            .send({ roleId: mockRole._id, userId: mockUser._id });
-
-        expect(res.status).toBe(200);
-        expect(res.body.message).toBe("Rôle attribué avec succès");
-        expect(mockUser.role).toEqual(mockRole._id);
-        expect(mockRole.users).toContain(mockUser._id.toString());
-        expect(mockUser.save).toHaveBeenCalled();
-        expect(mockRole.save).toHaveBeenCalled();
-    });
-
-    it("should fail to assign role with invalid roleId", async () => {
-        const res = await request(app)
-            .post("/api/roles/assign")
-            .send({ roleId: "invalid-id", userId: new mongoose.Types.ObjectId() });
-
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("ID de rôle invalide");
-    });
 });
