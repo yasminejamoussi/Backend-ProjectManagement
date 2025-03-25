@@ -5,7 +5,9 @@
   "scripts": {
     "start": "node src/server.js",
     "server": "nodemon src/server.js",
-    "test:unit": "jest test/authController.unit.test.js --forceExit --detectOpenHandles"
+   "test": "jest --ci --forceExit --verbose --detectOpenHandles",
+    "test:unit": "jest test/authController.unit.test.js --forceExit --detectOpenHandles",
+    "test:unit:role": "jest test/roleController.unit.test.js --forceExit --detectOpenHandles"
   },
   "keywords": [],
   "author": "",
