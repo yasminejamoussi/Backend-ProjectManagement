@@ -66,17 +66,17 @@ pipeline {
 
         stage('Install Docker Compose') {
             steps {
-                sh 'sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose'
-                sh 'sudo chmod +x /usr/local/bin/docker-compose'
-                sh 'docker-compose --version'
+                sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o ./docker-compose'
+                sh 'chmod +x ./docker-compose'
+                sh './docker-compose --version'
             }
         }
 
         stage('Clean Docker Environment') {
             steps {
                 echo "🧹 Nettoyage de l'environnement Docker..."
-                sh 'docker-compose down -v --rmi local || true' // Supprime les conteneurs, volumes et images locales
-                sh 'docker system prune -f || true' // Nettoie les ressources inutilisées
+                sh './docker-compose down -v --rmi local || true'
+                sh 'docker system prune -f || true'
             }
         }
 
@@ -84,7 +84,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage des services Docker..."
-                    sh 'docker-compose -f docker-compose.yaml up -d'
+                    sh './docker-compose -f docker-compose.yaml up -d'
                 }
             }
         }
@@ -128,7 +128,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Build des images Docker..."
-                    sh 'docker-compose -f docker-compose.yaml build'
+                    sh './docker-compose -f docker-compose.yaml build'
                 }
             }
         }
@@ -137,7 +137,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage de l'application..."
-                    sh 'docker-compose -f docker-compose.yaml up -d' // Utiliser docker-compose, pas ./docker-compose
+                    sh './docker-compose -f docker-compose.yaml up -d'
                 }
             }
         }
@@ -152,7 +152,7 @@ pipeline {
         }
         always {
             echo "📂 Nettoyage de l'espace de travail après exécution..."
-            sh 'docker-compose down -v || true' // Arrêter les conteneurs et supprimer les volumes
+            sh './docker-compose down -v || true'
             cleanWs()
         }
     }
