@@ -1,3 +1,12 @@
+// Charger les variables d'environnement avant tout
+require("dotenv").config();
+
+// Définir les variables d'environnement pour les tests
+process.env.EMAIL_USER = "test@example.com";
+process.env.EMAIL_PASSWORD = "password";
+process.env.JWT_SECRET = "secret";
+
+// Imports après la configuration des variables d'environnement
 const request = require("supertest");
 const express = require("express");
 const mongoose = require("mongoose");
@@ -61,11 +70,6 @@ describe("Auth Controller Tests", () => {
         app.get("/api/auth/users/:id", getUserById);
         app.put("/api/auth/users/:id", updateUser);
         app.delete("/api/auth/users/:id", deleteUser);
-
-        // Définir les variables d'environnement pour les tests
-        process.env.EMAIL_USER = "test@example.com";
-        process.env.EMAIL_PASSWORD = "password";
-        process.env.JWT_SECRET = "secret";
     });
 
     beforeEach(() => {
@@ -294,7 +298,7 @@ describe("Auth Controller Tests", () => {
         });
         User.updateOne.mockResolvedValue({});
         LoginAttempt.create.mockResolvedValue({});
-        jest.spyOn(require("argon2"), "verify").mockResolvedValue(true); // Mocker argon2.verify
+        jest.spyOn(require("argon2"), "verify").mockResolvedValue(true);
         spawn.mockReturnValue({
             stdout: {
                 on: jest.fn((event, callback) => {
@@ -330,7 +334,7 @@ describe("Auth Controller Tests", () => {
         });
         User.updateOne.mockResolvedValue({});
         LoginAttempt.create.mockResolvedValue({});
-        jest.spyOn(require("argon2"), "verify").mockResolvedValue(false); // Mocker argon2.verify
+        jest.spyOn(require("argon2"), "verify").mockResolvedValue(false);
 
         const res = await request(app)
             .post("/api/auth/login")
