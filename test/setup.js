@@ -6,7 +6,11 @@ jest.spyOn(mongoose, "connect").mockImplementation(() => {
     return Promise.resolve();
 });
 
-jest.spyOn(mongoose.connection, "readyState", "get").mockReturnValue(1);
+// Mock de la propriété readyState directement
+Object.defineProperty(mongoose.connection, "readyState", {
+    value: 1, // Simuler une connexion prête
+    writable: true,
+});
 
 // Nettoyer les mocks avant chaque test
 beforeEach(() => {
