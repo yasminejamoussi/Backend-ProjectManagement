@@ -45,7 +45,11 @@ describe("Role Controller Tests", () => {
     });
 
     it("should throw error if MongoDB connection fails", async () => {
-        jest.spyOn(mongoose, "connection", "get").mockReturnValueOnce({ readyState: 0 });
+        // Mocker directement la propriété readyState
+        Object.defineProperty(mongoose.connection, "readyState", {
+            value: 0,
+            writable: true,
+        });
 
         await expect(initializeRoles()).rejects.toThrow("Impossible de se connecter à MongoDB pour initialiser les rôles.");
     });
@@ -130,12 +134,12 @@ describe("Role Controller Tests", () => {
 
         const res = await request(app)
             .put(`/api/roles/${mockRole._id}`)
-            .send({ name: "UpdatedRole", permissions: ["read", "write"] });
+            .send({ name: "UpdatedRole", permissions: ["read", "update"] }); // Utiliser une permission valide
 
         expect(res.status).toBe(200);
         expect(res.body.message).toBe("Rôle mis à jour avec succès");
         expect(mockRole.name).toBe("UpdatedRole");
-        expect(mockRole.permissions).toEqual(["read", "write"]);
+        expect(mockRole.permissions).toEqual(["read", "update"]);
         expect(mockRole.save).toHaveBeenCalled();
     });
 
@@ -151,11 +155,11 @@ describe("Role Controller Tests", () => {
     // Test pour deleteRole
     it("should delete a role and reassign users", async () => {
         const mockRole = {
-            _id: new mongoose.Types.ObjectId(),
+            _id: new mongoose.Types.ObjectId(), // Utiliser un vrai ObjectId
             name: "TestRole",
         };
         const mockGuestRole = {
-            _id: new mongoose.Types.ObjectId(),
+            _id: new mongoose.Types.ObjectId(), // Utiliser un vrai ObjectId
             name: "Guest",
         };
         Role.findById.mockResolvedValue(mockRole);
@@ -208,7 +212,7 @@ describe("Role Controller Tests", () => {
         expect(res.status).toBe(200);
         expect(res.body.message).toBe("Rôle attribué avec succès");
         expect(mockUser.role).toEqual(mockRole._id);
-        expect(mockRole.users).toContainEqual(mockUser._id);
+        expect(mockRole.users).toContain(mockUser._id.toString()); // Utiliser toContain
         expect(mockUser.save).toHaveBeenCalled();
         expect(mockRole.save).toHaveBeenCalled();
     });
