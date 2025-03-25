@@ -10,12 +10,15 @@ process.env.JWT_SECRET = "secret";
 const request = require("supertest");
 const express = require("express");
 const mongoose = require("mongoose");
+const nodemailer = require("nodemailer");
+const speakeasy = require("speakeasy");
+const qrcode = require("qrcode");
 const jwt = require("jsonwebtoken");
 const { spawn } = require("child_process");
 const {
     register,
     login,
-    getUsers,
+    getAllUsers,
     getUserById,
     updateUser,
     deleteUser,
@@ -43,7 +46,7 @@ describe("Auth Controller Tests", () => {
         app.use(express.json());
         app.post("/api/auth/register", register);
         app.post("/api/auth/login", login);
-        app.get("/api/auth/users", getUsers);
+        app.get("/api/auth/users", getAllUsers);
         app.get("/api/auth/users/:id", getUserById);
         app.put("/api/auth/users/:id", updateUser);
         app.delete("/api/auth/users/:id", deleteUser);
@@ -52,16 +55,15 @@ describe("Auth Controller Tests", () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
-   
+
     // Test pour register
     it("should register a new user", async () => {
-        User.findOne.mockResolvedValue(null);
+        User.findOne.mockResolvedValue(null); // Aucun utilisateur existant
         const mockRole = {
             _id: new mongoose.Types.ObjectId(),
             name: "Admin",
-            save: jest.fn().mockResolvedValue(true),
         };
-        Role.findOne.mockResolvedValue(mockRole);
+        Role.findOne.mockResolvedValue(mockRole); // Rôle Admin trouvé
         const mockUser = {
             _id: new mongoose.Types.ObjectId(),
             firstname: "John",
@@ -90,7 +92,7 @@ describe("Auth Controller Tests", () => {
     });
 
     it("should fail to register if email exists", async () => {
-        User.findOne.mockResolvedValue({ email: "john@example.com" });
+        User.findOne.mockResolvedValue({ email: "john@example.com" }); // Utilisateur existant
 
         const res = await request(app)
             .post("/api/auth/register")
@@ -122,11 +124,11 @@ describe("Auth Controller Tests", () => {
         });
         User.updateOne.mockResolvedValue({});
         LoginAttempt.create.mockResolvedValue({});
-        jest.spyOn(require("argon2"), "verify").mockResolvedValue(true);
+        jest.spyOn(require("argon2"), "verify").mockResolvedValue(true); // Mot de passe correct
         spawn.mockReturnValue({
             stdout: {
                 on: jest.fn((event, callback) => {
-                    if (event === "data") callback("[]");
+                    if (event === "data") callback("[]"); // Aucune tentative suspecte
                 }),
             },
             stderr: { on: jest.fn() },
@@ -158,7 +160,7 @@ describe("Auth Controller Tests", () => {
         });
         User.updateOne.mockResolvedValue({});
         LoginAttempt.create.mockResolvedValue({});
-        jest.spyOn(require("argon2"), "verify").mockResolvedValue(false);
+        jest.spyOn(require("argon2"), "verify").mockResolvedValue(false); // Mot de passe incorrect
 
         const res = await request(app)
             .post("/api/auth/login")
@@ -191,7 +193,7 @@ describe("Auth Controller Tests", () => {
             firstname: "John",
             save: jest.fn().mockResolvedValue(true),
         };
-        User.findById.mockResolvedValue(mockUser);
+        User.findById.mockResolvedValue(mockUser); // Retourner directement l'utilisateur
 
         const res = await request(app)
             .put(`/api/auth/users/${mockUser._id}`)
@@ -200,6 +202,7 @@ describe("Auth Controller Tests", () => {
         expect(res.status).toBe(200);
         expect(res.body.message).toBe("User updated successfully");
         expect(mockUser.firstname).toBe("Jane");
+        expect(mockUser.save).toHaveBeenCalled();
     });
 
     // Test pour getUserById
@@ -209,7 +212,9 @@ describe("Auth Controller Tests", () => {
             email: "test@example.com",
         };
         User.findById.mockReturnValue({
-            populate: jest.fn().mockResolvedValue(mockUser),
+            select: jest.fn().mockReturnValue({
+                populate: jest.fn().mockResolvedValue(mockUser),
+            }),
         });
 
         const res = await request(app).get(`/api/auth/users/${mockUser._id}`);
