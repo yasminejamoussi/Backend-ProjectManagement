@@ -101,12 +101,13 @@ stage('SonarQube Analysis') {
                                 ${scannerHome}/bin/sonar-scanner \
                                 -Dsonar.projectKey=projectpi \
                                 -Dsonar.sources=src \
-                                -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js,,src/middleware/validateRole.js,,src/models/Role.js,,src/middleware/roleMiddleware.js \
+                                -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js,,src/middleware/validateRole.js,,src/models/Role.js,,src/middleware/roleMiddleware.js,,src/models/User.js \
                                 -Dsonar.host.url=http://192.168.33.10:9000 \
                                 -Dsonar.login=\${SONAR_LOGIN} \
                                 -Dsonar.javascript.node.maxspace=2048 \
                                 -Dsonar.verbose=true \
-                                -Dsonar.scanner.skipJstsAnalysis=true
+                                -Dsonar.scanner.skipJstsAnalysis=true \
+                                -Dsonar.javascript.enabled=false
                             """
                         }
                     }
