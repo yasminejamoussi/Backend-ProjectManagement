@@ -85,14 +85,13 @@ pipeline {
                 }
             }
         }*/
-         stage('SonarQube Analysis') {
+stage('SonarQube Analysis') {
     steps {
         script {
             def scannerHome = tool 'scanner'
-            withSonarQubeEnv('sonarqube') { // Changed from 'scanner' to 'sonarqube'
+            withSonarQubeEnv('scanner') { // Changed from 'sonarqube' to 'scanner'
                 dir('backend') {
                     echo "🚀 Démarrage de l'analyse SonarQube..."
-                    // Add debugging steps
                     sh "echo 'SonarQube Server URL: ${env.SONAR_HOST_URL}'"
                     sh "echo 'SonarQube Token: ${SONAR_TOKEN}'"
                     sh "curl -s http://192.168.33.10:9000 || echo 'ERROR: Cannot reach SonarQube server'"
