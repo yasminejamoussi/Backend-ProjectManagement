@@ -36,6 +36,22 @@ pipeline {
                 }
             }
         }
+        stage('Debug Docker Compose File') {
+            steps {
+                script {
+                    echo "📂 Vérification des fichiers dans le répertoire principal..."
+                    sh 'ls -la'
+                    echo "📂 Vérification des fichiers dans backend..."
+                    dir('backend') {
+                        sh 'ls -la'
+                    }
+                    echo "📂 Vérification des fichiers dans frontend..."
+                    dir('frontend') {
+                        sh 'ls -la'
+                    }
+                }
+            }
+        }
 
         stage('Install Frontend Dependencies') {
             steps {
@@ -175,16 +191,16 @@ stage('Check Docker Compose') {
     }
 }
 
-       stage('Building Docker Images') {
-    steps {
-        script {
-            dir('backend') {  
-                echo "🚀 Build des images Docker..."
-                sh 'docker-compose -f docker-compose.yaml build'
+    stage('Building Docker Images') {
+            steps {
+                script {
+                    dir('backend') {  
+                        echo "🚀 Build des images Docker..."
+                        sh './docker-compose -f docker-compose.yaml build'
+                    }
+                }
             }
         }
-    }
-}
 
 
 
