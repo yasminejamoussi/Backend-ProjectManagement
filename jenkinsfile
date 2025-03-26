@@ -95,7 +95,7 @@ stage('SonarQube Analysis') {
                     sh "echo 'SonarQube Server URL: ${env.SONAR_HOST_URL}'"
                     sh "echo 'SonarQube Token: ${SONAR_TOKEN}'"
                     sh "curl -s http://192.168.33.10:9000 || echo 'ERROR: Cannot reach SonarQube server'"
-                    timeout(time: 15, unit: 'MINUTES') {
+                    timeout(time: 5, unit: 'MINUTES') {
                         withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
                             sh """
                                 ${scannerHome}/bin/sonar-scanner \
