@@ -117,7 +117,30 @@ stage('SonarQube Analysis') {
     }
 }
 
+  stage('Install Docker Compose') {
+            steps {
+                sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o ./docker-compose'
+                sh 'chmod +x ./docker-compose'
+                sh './docker-compose --version'
+            }
+        }
 
+        stage('Clean Docker Environment') {
+            steps {
+                echo "🧹 Nettoyage de l'environnement Docker..."
+                sh './docker-compose down -v --rmi local || true'
+                sh 'docker system prune -f || true'
+            }
+        }
+
+        stage('Start Docker Services') {
+            steps {
+                script {
+                    echo "🚀 Démarrage des services Docker..."
+                    sh './docker-compose -f docker-compose.yaml up -d'
+                }
+            }
+        }
 
         stage('Unit Test Backend') {
             steps {
