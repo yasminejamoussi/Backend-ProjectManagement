@@ -117,7 +117,7 @@ stage('SonarQube Analysis') {
     }
 }
 
-  stage('Install Docker Compose') {
+        stage('Install Docker Compose') {
             steps {
                 sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o ./docker-compose'
                 sh 'chmod +x ./docker-compose'
@@ -137,8 +137,9 @@ stage('SonarQube Analysis') {
             steps {
                 script {
                     echo "🚀 Démarrage des services Docker..."
-                    sh './docker-compose -f docker-compose.yaml up -d'
-                }
+                    dir('backend') {  // <-- Ajoutez cette ligne pour entrer dans le dossier backend
+                sh './docker-compose -f docker-compose.yaml up -d'
+            }                }
             }
         }
 
