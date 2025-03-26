@@ -108,13 +108,19 @@ stage('SonarQube Analysis') {
     }
 }
 
-     stage('Install Docker Compose') {
+   stage('Install Docker Compose') {
     steps {
-        sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose'
-        sh 'chmod +x /usr/local/bin/docker-compose'
-        sh 'docker-compose --version'
+        script {
+            sh '''
+                sudo apt update && sudo apt install -y docker-compose || \
+                sudo yum install -y docker-compose || \
+                echo "Installation de docker-compose échouée !"
+                docker-compose --version
+            '''
+        }
     }
 }
+
 
 
         stage('Clean Docker Environment') {
@@ -127,10 +133,11 @@ stage('SonarQube Analysis') {
 stage('Check Docker Compose Installation') {
     steps {
         script {
-            sh 'which docker-compose || echo "docker-compose non trouvé"'
+            sh 'which docker-compose || echo "❌ docker-compose non trouvé"'
         }
     }
 }
+
 
         stage('Start Docker Services') {
             steps {
