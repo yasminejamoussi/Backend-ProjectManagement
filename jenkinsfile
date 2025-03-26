@@ -95,7 +95,7 @@ stage('SonarQube Analysis') {
                     sh "echo 'SonarQube Server URL: ${env.SONAR_HOST_URL}'"
                     sh "echo 'SonarQube Token: ${SONAR_TOKEN}'"
                     sh "curl -s http://192.168.33.10:9000 || echo 'ERROR: Cannot reach SonarQube server'"
-                    timeout(time: 5, unit: 'MINUTES') {
+                    timeout(time: 15, unit: 'MINUTES') {
                         withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
                             sh """
                                 ${scannerHome}/bin/sonar-scanner \
@@ -104,7 +104,7 @@ stage('SonarQube Analysis') {
                                 -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js,src/middleware/validateRole.js,src/models/Role.js,src/middleware/roleMiddleware.js,src/models/User.js \
                                 -Dsonar.host.url=http://192.168.33.10:9000 \
                                 -Dsonar.login=\${SONAR_LOGIN} \
-                                -Dsonar.javascript.node.maxspace=4096 \
+                                -Dsonar.javascript.node.maxspace=3072 \
                                 -Dsonar.verbose=true \
                                 -Dsonar.scanner.skipJstsAnalysis=true \
                                 -Dsonar.javascript.enabled=false
