@@ -16,7 +16,7 @@ pipeline {
             }
         }
 
-        stage('Checkout Code') {
+       stage('Checkout Code') {
             steps {
                 script {
                     echo "🧹 Nettoyage de l'espace de travail..."
@@ -25,11 +25,19 @@ pipeline {
                     sh "git config --global https.postBuffer 524288000"
 
                     echo "📥 Clonage du Backend..."
-                    sh "git clone ${BACKEND_REPO} backend"
+                    dir('backend') {
+                        // Clonage explicite de la branche picicd avec un fetch complet
+                        sh "git clone -b picicd ${BACKEND_REPO} ."
+                        sh "git fetch origin"
+                        sh "git checkout picicd"
+                        sh "git pull origin picicd"
+                    }
 
                     echo "📥 Clonage du Frontend..."
                     retry(3) {
-                        sh "git clone --progress --verbose ${FRONTEND_REPO} frontend"
+                        dir('frontend') {
+                            sh "git clone --progress --verbose ${FRONTEND_REPO} ."
+                        }
                     }
                 }
             }
