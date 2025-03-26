@@ -75,32 +75,7 @@ pipeline {
             }
         }
 
-        /*stage('SonarQube Analysis') {
-            steps {
-                script {
-                    def scannerHome = tool 'scanner' // 🔹 Assurez-vous que le scanner est bien configuré
-                    withSonarQubeEnv('scanner')
-                    
-                     {
-                        dir('backend') {
-                            echo "🚀 Démarrage de l'analyse SonarQube..."
-                            timeout(time: 15, unit: 'MINUTES') { // Augmente le timeout
-                                sh """
-                                    export SONAR_SCANNER_OPTS="-Xmx4g"
-                                    export NODE_OPTIONS="--max-old-space-size=4096"
-                                    ${scannerHome}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=projectpi \
-                                    -Dsonar.sources=. \
-                                    -Dsonar.host.url=http://192.168.33.10:9000 \
-                                    -Dsonar.login=${SONAR_TOKEN} \
-                                    -Dsonar.verbose=true
-                                """
-                            }
-                        }
-                    }
-                }
-            }
-        }*/
+       
 stage('SonarQube Analysis') {
     steps {
         script {
@@ -133,13 +108,14 @@ stage('SonarQube Analysis') {
     }
 }
 
-        stage('Install Docker Compose') {
-            steps {
-                sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o ./docker-compose'
-                sh 'chmod +x ./docker-compose'
-                sh './docker-compose --version'
-            }
-        }
+     stage('Install Docker Compose') {
+    steps {
+        sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose'
+        sh 'chmod +x /usr/local/bin/docker-compose'
+        sh 'docker-compose --version'
+    }
+}
+
 
         stage('Clean Docker Environment') {
             steps {
@@ -148,13 +124,20 @@ stage('SonarQube Analysis') {
                 sh 'docker system prune -f || true'
             }
         }
+stage('Check Docker Compose Installation') {
+    steps {
+        script {
+            sh 'which docker-compose || echo "docker-compose non trouvé"'
+        }
+    }
+}
 
         stage('Start Docker Services') {
             steps {
                 script {
                     echo "🚀 Démarrage des services Docker..."
                     dir('backend') { 
-                sh './docker-compose -f docker-compose.yaml up -d'
+sh './docker-compose -f docker-compose.yaml up -d'
             }                }
             }
         }
@@ -235,7 +218,7 @@ stage('Check Docker Compose') {
             echo '❌ Le pipeline a échoué. Vérifiez les logs.'
         }
        always {
-            node('master') { // 🔹 Ajout du bloc node avec le label 'master'
+            node('master') { 
                 echo "📂 Nettoyage de l'espace de travail après exécution..."
                 cleanWs()
             }
