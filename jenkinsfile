@@ -153,7 +153,7 @@ stage('SonarQube Analysis') {
             steps {
                 script {
                     echo "🚀 Démarrage des services Docker..."
-                    dir('backend') {  // <-- Ajoutez cette ligne pour entrer dans le dossier backend
+                    dir('backend') { 
                 sh './docker-compose -f docker-compose.yaml up -d'
             }                }
             }
@@ -163,7 +163,7 @@ stage('SonarQube Analysis') {
             steps {
                 script {
                     dir('backend') {
-                        sh 'npm install --save-dev jest-junit' // 🔹 Ajoute cette ligne avant d'exécuter les tests
+                        sh 'npm install --save-dev jest-junit' 
                         timeout(time: 5, unit: 'MINUTES') {
                             sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit'
                         }
@@ -171,7 +171,20 @@ stage('SonarQube Analysis') {
                 }
             }
         }
-
+        stage('Debug Directory') {
+            steps {
+                echo "📂 Contenu de la racine :"
+                sh 'ls -la'
+                dir('backend') {
+                    echo "📂 Contenu de backend :"
+                    sh 'ls -la'
+                }
+                dir('frontend') {
+                    echo "📂 Contenu de frontend :"
+                    sh 'ls -la'
+                }
+            }
+        }
         stage('Build Frontend') {
             steps {
                 script {
