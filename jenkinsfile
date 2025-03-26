@@ -4,7 +4,7 @@ pipeline {
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
-        SONAR_TOKEN = credentials('sonarqube-token') // 🔹 Récupération du token depuis Jenkins
+        SONAR_TOKEN = credentials('sonarqube-token') 
     }
 
     stages {
@@ -21,7 +21,7 @@ pipeline {
                     echo "🧹 Nettoyage de l'espace de travail..."
                     cleanWs()
 
-                      // Configurer le buffer Git
+                     
             sh "git config --global http.postBuffer 524288000"
             sh "git config --global https.postBuffer 524288000"
 
@@ -108,15 +108,29 @@ stage('SonarQube Analysis') {
     }
 }
 
-   stage('Install Docker Compose') {
+  stage('Install Docker Compose') {
     steps {
         script {
             sh '''
-                sudo apt update && sudo apt install -y docker-compose || \
-                sudo yum install -y docker-compose || \
-                echo "Installation de docker-compose échouée !"
+                if ! command -v docker-compose >/dev/null 2>&1; then
+                    echo "Installing Docker Compose..."
+                    sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                    sudo chmod +x /usr/local/bin/docker-compose
+                fi
                 docker-compose --version
             '''
+        }
+    }
+}
+
+stage('Start Docker Services') {
+    steps {
+        script {
+            echo "🚀 Démarrage des services Docker..."
+            dir('backend') {
+                sh 'export PATH=$PATH:/usr/local/bin'
+                sh 'docker-compose -f docker-compose.yaml up -d'
+            }
         }
     }
 }
@@ -139,15 +153,6 @@ stage('Check Docker Compose Installation') {
 }
 
 
-        stage('Start Docker Services') {
-            steps {
-                script {
-                    echo "🚀 Démarrage des services Docker..."
-                    dir('backend') { 
-sh './docker-compose -f docker-compose.yaml up -d'
-            }                }
-            }
-        }
 
         stage('Unit Test Backend') {
             steps {
