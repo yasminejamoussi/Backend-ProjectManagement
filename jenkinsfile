@@ -134,14 +134,40 @@ pipeline {
             }
         }
 
-  stage('Building Docker Images') {
-            steps {
-                script {
-                    echo "🚀 Build des images Docker..."
-                    sh './docker-compose -f docker-compose.yaml build || (echo "❌ Échec de la construction des images Docker, vérifiez les logs" && exit 1)'
+stage('Building Docker Images') {
+    environment {
+        // Activer BuildKit pour des builds plus rapides
+        DOCKER_BUILDKIT = "1"
+        COMPOSE_DOCKER_CLI_BUILD = "1"
+    }
+    steps {
+        script {
+            echo "🚀 Build des images Docker (avec BuildKit)..."
+            
+            timeout(time: 30, unit: 'MINUTES') {
+                retry(2) {
+                    sh '''
+                        # Vérifier l'espace disque disponible
+                        df -h
+                        
+                        # Nettoyer le cache Docker avant le build
+                        docker builder prune -f || true
+                        
+                        # Build avec cache optimisé
+                        ./docker-compose -f docker-compose.yaml build \
+                            --progress=plain \
+                            --no-cache \
+                            --memory 2GB \
+                            || (echo "❌ Échec du build Docker" && docker system df && exit 1)
+                        
+                        echo "✅ Build des images terminé"
+                        docker images
+                    '''
                 }
             }
         }
+    }
+}
       stage('Start Docker Services') {
             steps {
                 script {
