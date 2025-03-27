@@ -136,30 +136,33 @@ pipeline {
 
 stage('Building Docker Images') {
     environment {
-        // Activer BuildKit pour des builds plus rapides
-        DOCKER_BUILDKIT = "1"
+        DOCKER_BUILDKIT = "1" // Active BuildKit pour des builds plus rapides
         COMPOSE_DOCKER_CLI_BUILD = "1"
     }
     steps {
         script {
             echo "🚀 Build des images Docker (avec BuildKit)..."
-            
-            timeout(time: 30, unit: 'MINUTES') {
-                retry(2) {
+            timeout(time: 60, unit: 'MINUTES') { // Augmente à 60 min pour donner plus de temps
+                retry(2) { // Tente 2 fois en cas d'échec
                     sh '''
-                        # Vérifier l'espace disque disponible
+                        # Vérifier les ressources disponibles
+                        echo "Vérification de l'espace disque :"
                         df -h
-                        
+                        echo "Vérification de la mémoire :"
+                        free -m
+
                         # Nettoyer le cache Docker avant le build
                         docker builder prune -f || true
-                        
-                        # Build avec cache optimisé
+
+                        # Pré-télécharger l'image de base pour éviter les problèmes réseau
+                        docker pull node:18 || echo "⚠️ Échec du pull, on continue avec le cache local"
+
+                        # Build en utilisant le cache si disponible
                         ./docker-compose -f docker-compose.yaml build \
                             --progress=plain \
-                            --no-cache \
-                            --memory 2GB \
+                            --memory 4GB \ # Augmente à 4 Go pour plus de stabilité
                             || (echo "❌ Échec du build Docker" && docker system df && exit 1)
-                        
+
                         echo "✅ Build des images terminé"
                         docker images
                     '''
