@@ -134,6 +134,14 @@ pipeline {
             }
         }
 
+  stage('Building Docker Images') {
+            steps {
+                script {
+                    echo "🚀 Build des images Docker..."
+                    sh './docker-compose -f docker-compose.yaml build || (echo "❌ Échec de la construction des images Docker, vérifiez les logs" && exit 1)'
+                }
+            }
+        }
       stage('Start Docker Services') {
             steps {
                 script {
@@ -203,14 +211,7 @@ pipeline {
             }
         }
 
-        stage('Building Docker Images') {
-            steps {
-                script {
-                    echo "🚀 Build des images Docker..."
-                    sh './docker-compose -f docker-compose.yaml build || (echo "❌ Échec de la construction des images Docker, vérifiez les logs" && exit 1)'
-                }
-            }
-        }
+      
 
         stage('Run Application') {
             steps {
