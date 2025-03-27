@@ -86,73 +86,6 @@ pipeline {
             }
         }
 
-        stage('Install Docker Compose') {
-            steps {
-                script {
-                    sh '''
-                        if ! command -v docker-compose >/dev/null 2>&1; then
-                            echo "Installing Docker Compose..."
-                            sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                            sudo chmod +x /usr/local/bin/docker-compose
-                        fi
-                        docker-compose --version
-                    '''
-                }
-            }
-        }
-
-        stage('Clean Docker Environment') {
-            steps {
-                echo "🧹 Nettoyage de l'environnement Docker..."
-                sh 'docker-compose -f docker-compose.yaml down -v --rmi local || true'
-                sh 'docker system prune -f || true'
-            }
-        }
-
-        stage('Start Docker Services') {
-            steps {
-                script {
-                    echo "🚀 Démarrage des services Docker..."
-                    sh '''
-                        if [ -f docker-compose.yaml ]; then
-                            docker-compose -f docker-compose.yaml up -d || (echo "❌ Échec du démarrage des services Docker, vérifiez les logs" && exit 1)
-                            # Attendre que MongoDB soit prêt
-                            sleep 10
-                            # Vérifier que les conteneurs sont en cours d'exécution
-                            docker ps | grep mongo-test || (echo "❌ Conteneur mongo-test non démarré" && exit 1)
-                            docker ps | grep mongodb || (echo "❌ Conteneur mongodb non démarré" && exit 1)
-                        else
-                            echo "❌ docker-compose.yaml introuvable, arrêt du pipeline..."
-                            exit 1
-                        fi
-                    '''
-                }
-            }
-        }
-
-        stage('Check Docker Compose Installation') {
-            steps {
-                script {
-                    sh 'which docker-compose || echo "❌ docker-compose non trouvé"'
-                }
-            }
-        }
-
-        stage('Unit Test Backend') {
-            steps {
-                script {
-                    dir('backend') {
-                        sh 'npm install --save-dev jest-junit'
-                        timeout(time: 5, unit: 'MINUTES') {
-                            withEnv(['MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin', 'NODE_ENV=test']) {
-                                sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit || (echo "Tests failed, check logs" && cat jest-junit.xml && exit 1)'
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         stage('SonarQube Analysis') {
             steps {
                 script {
@@ -185,6 +118,56 @@ pipeline {
             }
         }
 
+  stage('Install Docker Compose') {
+            steps {
+                sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o ./docker-compose'
+                sh 'chmod +x ./docker-compose'
+                sh './docker-compose --version'
+            }
+        }
+
+        stage('Clean Docker Environment') {
+            steps {
+                echo "🧹 Nettoyage de l'environnement Docker..."
+                sh 'docker-compose -f docker-compose.yaml down -v --rmi local || true'
+                sh 'docker system prune -f || true'
+            }
+        }
+
+      stage('Start Docker Services') {
+            steps {
+                script {
+                    echo "🚀 Démarrage des services Docker..."
+                    sh '''
+                        if [ -f docker-compose.yaml ]; then
+                            ./docker-compose -f docker-compose.yaml up -d || (echo "❌ Échec du démarrage des services Docker, vérifiez les logs" && exit 1)
+                            sleep 10
+                            docker ps | grep mongo-test || (echo "❌ Conteneur mongo-test non démarré" && exit 1)
+                            docker ps | grep mongodb || (echo "❌ Conteneur mongodb non démarré" && exit 1)
+                        else
+                            echo "❌ docker-compose.yaml introuvable, arrêt du pipeline..."
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+
+      
+
+     stage('Unit Test Backend') {
+            steps {
+                dir('backend') {
+                    sh 'npm install --save-dev jest-junit'
+                    timeout(time: 10, unit: 'MINUTES') {
+                        withEnv(['MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin', 'NODE_ENV=test']) {
+                            sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles || (echo "Tests failed, check logs" && cat jest-junit.xml && exit 1)'
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Build Frontend') {
             steps {
                 script {
@@ -211,6 +194,7 @@ pipeline {
             }
         }
 
+
         stage('Check Docker Compose') {
             steps {
                 script {
@@ -223,7 +207,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Build des images Docker..."
-                    sh 'docker-compose -f docker-compose.yaml build || (echo "❌ Échec de la construction des images Docker, vérifiez les logs" && exit 1)'
+                    sh './docker-compose -f docker-compose.yaml build || (echo "❌ Échec de la construction des images Docker, vérifiez les logs" && exit 1)'
                 }
             }
         }
@@ -232,7 +216,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage de l'application..."
-                    sh 'docker-compose -f docker-compose.yaml up -d || (echo "❌ Échec du démarrage de l\'application, vérifiez les logs" && exit 1)'
+                    sh './docker-compose -f docker-compose.yaml up -d || (echo "❌ Échec du démarrage de l\'application, vérifiez les logs" && exit 1)'
                 }
             }
         }
@@ -244,15 +228,18 @@ pipeline {
         }
         failure {
             echo '❌ Le pipeline a échoué. Vérifiez les logs.'
-            sh 'docker-compose -f docker-compose.yaml logs || true'
-        }
+dir(workspace) {
+            sh './docker-compose -f docker-compose.yaml logs || true'
+        }        }
         always {
             node('master') {
                 echo "🧹 Nettoyage de l'environnement Docker..."
-                sh 'docker-compose -f docker-compose.yaml down -v --rmi local || true'
-                sh 'docker system prune -f || true'
-                echo "📂 Nettoyage de l'espace de travail après exécution..."
-                cleanWs()
+              dir(workspace) {
+            sh './docker-compose -f docker-compose.yaml down -v --rmi local || true'
+            sh 'docker system prune -f || true'
+        }
+        echo "📂 Nettoyage de l'espace de travail après exécution..."
+        cleanWs()
             }
         }
     }
