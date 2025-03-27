@@ -157,7 +157,7 @@ stage('Building Docker Images') {
                         
                         # Pré-télécharger l'image de base pour éviter les problèmes réseau
                         docker pull node:18 || echo "⚠️ Échec du pull, on continue avec le cache local"
-                        
+
                         # Build avec cache optimisé
                         ./docker-compose -f docker-compose.yaml build \
                             --progress=plain \
@@ -193,7 +193,7 @@ stage('Building Docker Images') {
 
       
 
-     stage('Unit Test Backend') {
+    /* stage('Unit Test Backend') {
             steps {
                 dir('backend') {
                     sh 'npm install --save-dev jest-junit'
@@ -204,7 +204,22 @@ stage('Building Docker Images') {
                     }
                 }
             }
+        }*/
+        stage('Unit Test Backend') {
+    steps {
+        dir('backend') {
+            sh 'npm install --save-dev jest-junit'
+            timeout(time: 10, unit: 'MINUTES') {
+                withEnv(['MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin', 'NODE_ENV=test']) {
+                    sh '''
+                        sleep 30  # Attendre 30 secondes pour mongo-test
+                        npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles || (echo "Tests failed, check logs" && cat jest-junit.xml && exit 1)
+                    '''
+                }
+            }
         }
+    }
+}
 
         stage('Build Frontend') {
             steps {
