@@ -182,6 +182,10 @@ stage('Unit Test Backend') {
     dir('backend') {
       script {
         timeout(time: 2, unit: 'MINUTES') {
+          // Debug network resolution
+          sh 'docker exec jenkins ping -c 5 mongo-test || echo "Ping failed"'
+          sh 'docker exec jenkins nc -zv mongo-test 27017 || echo "Port check failed"'
+          
           waitUntil {
             try {
               sh 'docker exec mongo-test mongo "mongodb://testuser:testpass@localhost:27017/testdb?authSource=admin" --eval "db.adminCommand(\'ping\')" --quiet'
