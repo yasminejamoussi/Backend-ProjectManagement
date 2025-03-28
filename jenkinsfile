@@ -181,11 +181,10 @@ stage('Unit Test Backend') {
   steps {
     dir('backend') {
       script {
-        // Attente active de MongoDB
         timeout(time: 2, unit: 'MINUTES') {
           waitUntil {
             try {
-              sh 'docker exec mongo-test mongo --eval "db.adminCommand(\'ping\')" --quiet'
+              sh 'docker exec mongo-test mongo "mongodb://testuser:testpass@localhost:27017/testdb?authSource=admin" --eval "db.adminCommand(\'ping\')" --quiet'
               return true
             } catch (e) {
               sleep 5
@@ -193,13 +192,11 @@ stage('Unit Test Backend') {
             }
           }
         }
-
-        // Exécution avec logging complet
         sh '''
           npm test -- \
             --ci \
             --forceExit \
-            --testTimeout=30000 \
+            --testTimeout=60000 \
             --detectOpenHandles \
             --verbose \
             --logHeapUsage

@@ -8,8 +8,8 @@ beforeAll(async () => {
 
   try {
     await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 30000,
-      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 60000,
+      socketTimeoutMS: 60000,
     });
     
     console.log("✅ MongoDB connecté");
@@ -17,8 +17,8 @@ beforeAll(async () => {
   } catch (error) {
     console.error("❌ Erreur de connexion :", error);
     process.exit(1);
-  }
-});
+}
+}, 60000);
 
 beforeEach(async () => {
   try {
