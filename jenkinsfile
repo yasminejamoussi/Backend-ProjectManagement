@@ -86,53 +86,8 @@ pipeline {
             }
         }
 
-             stage('Unit Test Backend') {
-    steps {
-        dir('backend') {
-            sh 'npm install --save-dev jest-junit'
-            timeout(time: 10, unit: 'MINUTES') {
-                withEnv(['MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin', 'NODE_ENV=test']) {
-                    sh '''
-                        sleep 30  # Attendre 30 secondes pour mongo-test
-                        npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles || (echo "Tests failed, check logs" && cat jest-junit.xml && exit 1)
-                    '''
-                }
-            }
-        }
-    }
-}
 
-        stage('SonarQube Analysis') {
-            steps {
-                script {
-                    def scannerHome = tool 'scanner'
-                    withSonarQubeEnv('scanner') {
-                        dir('backend') {
-                            echo "🚀 Démarrage de l'analyse SonarQube..."
-                            sh "echo 'SonarQube Server URL: ${env.SONAR_HOST_URL}'"
-                            sh "echo 'SonarQube Token: ${SONAR_TOKEN}'"
-                            sh "curl -s http://192.168.33.10:9000 || echo 'ERROR: Cannot reach SonarQube server'"
-                            timeout(time: 15, unit: 'MINUTES') {
-                                withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
-                                    sh """
-                                        ${scannerHome}/bin/sonar-scanner \
-                                        -Dsonar.projectKey=projectpi \
-                                        -Dsonar.sources=src \
-                                        -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js \
-                                        -Dsonar.host.url=http://192.168.33.10:9000 \
-                                        -Dsonar.login=\${SONAR_LOGIN} \
-                                        -Dsonar.javascript.node.maxspace=3072 \
-                                        -Dsonar.verbose=true \
-                                        -Dsonar.scanner.skipJstsAnalysis=true \
-                                        -Dsonar.javascript.enabled=false
-                                    """
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+
 
   stage('Install Docker Compose') {
             steps {
@@ -207,20 +162,55 @@ stage('Building Docker Images') {
             }
         }
 
+                   stage('Unit Test Backend') {
+    steps {
+        dir('backend') {
+            sh 'npm install --save-dev jest-junit'
+            timeout(time: 10, unit: 'MINUTES') {
+                withEnv(['MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin', 'NODE_ENV=test']) {
+                    sh '''
+                        sleep 30  # Attendre 30 secondes pour mongo-test
+                        npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles || (echo "Tests failed, check logs" && cat jest-junit.xml && exit 1)
+                    '''
+                }
+            }
+        }
+    }
+}
+
       
 
-    /* stage('Unit Test Backend') {
+      stage('SonarQube Analysis') {
             steps {
-                dir('backend') {
-                    sh 'npm install --save-dev jest-junit'
-                    timeout(time: 10, unit: 'MINUTES') {
-                        withEnv(['MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin', 'NODE_ENV=test']) {
-                            sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles || (echo "Tests failed, check logs" && cat jest-junit.xml && exit 1)'
+                script {
+                    def scannerHome = tool 'scanner'
+                    withSonarQubeEnv('scanner') {
+                        dir('backend') {
+                            echo "🚀 Démarrage de l'analyse SonarQube..."
+                            sh "echo 'SonarQube Server URL: ${env.SONAR_HOST_URL}'"
+                            sh "echo 'SonarQube Token: ${SONAR_TOKEN}'"
+                            sh "curl -s http://192.168.33.10:9000 || echo 'ERROR: Cannot reach SonarQube server'"
+                            timeout(time: 15, unit: 'MINUTES') {
+                                withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
+                                    sh """
+                                        ${scannerHome}/bin/sonar-scanner \
+                                        -Dsonar.projectKey=projectpi \
+                                        -Dsonar.sources=src \
+                                        -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js \
+                                        -Dsonar.host.url=http://192.168.33.10:9000 \
+                                        -Dsonar.login=\${SONAR_LOGIN} \
+                                        -Dsonar.javascript.node.maxspace=3072 \
+                                        -Dsonar.verbose=true \
+                                        -Dsonar.scanner.skipJstsAnalysis=true \
+                                        -Dsonar.javascript.enabled=false
+                                    """
+                                }
+                            }
                         }
                     }
                 }
             }
-        }*/
+        }
    
 
         stage('Build Frontend') {
