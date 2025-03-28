@@ -181,7 +181,7 @@ stage('Unit Test Backend') {
   steps {
     script {
       // Ensure Docker Compose is up
-      sh 'docker-compose -f docker-compose.yml up -d mongo-test'
+      sh 'docker-compose -f docker-compose.yaml up -d mongo-test'
       
       // Debug network connectivity
       sh 'docker inspect mongo-test' // Check network details
@@ -189,7 +189,7 @@ stage('Unit Test Backend') {
       
       // Run tests inside the api container
       sh '''
-        docker-compose -f docker-compose.yml run --rm api bash -c "npm test -- \
+        docker-compose -f docker-compose.yaml run --rm api bash -c "npm test -- \
           --ci \
           --forceExit \
           --testTimeout=60000 \
