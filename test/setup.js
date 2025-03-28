@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { createRoles } = require("../src/controllers/roleController");
+const { initializeRoles } = require("../src/controllers/roleController");
 
 async function connectWithRetry(uri, retries = 5, delay = 5000) {
   for (let i = 0; i < retries; i++) {
@@ -23,7 +23,7 @@ beforeAll(async () => {
   const mongoUri = process.env.MONGO_TEST_URI || "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
   console.log("📢 Connexion à MongoDB pour les tests :", mongoUri);
   await connectWithRetry(mongoUri);
-  await createRoles();
+  await initializeRoles();
 }, 120000); // 120s timeout
 
 beforeEach(async () => {
