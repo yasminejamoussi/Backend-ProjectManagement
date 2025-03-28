@@ -29,7 +29,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   try {
     await mongoose.connection.db.dropDatabase();
-    await createRoles(); // Ré-init des rôles après chaque test
+    await initializeRoles(); // Ré-init des rôles après chaque test
   } catch (error) {
     console.error("❌ Nettoyage échoué :", error);
   }
