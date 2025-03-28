@@ -23,6 +23,8 @@ services:
       - "./frontend/:/src"
       - "/src/node_modules"  # Empêche l'écrasement des dépendances
       - "./frontend/public:/src/public"
+    networks:
+      - app-network
 
   mongo:
     image: mongo:4.4
