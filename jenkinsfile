@@ -179,33 +179,24 @@ stage('Building Docker Images') {
 }*/
 stage('Unit Test Backend') {
   steps {
-    dir('backend') {
-      script {
-        timeout(time: 2, unit: 'MINUTES') {
-          // Debug network resolution
-          sh 'docker exec jenkins ping -c 5 mongo-test || echo "Ping failed"'
-          sh 'docker exec jenkins nc -zv mongo-test 27017 || echo "Port check failed"'
-          
-          waitUntil {
-            try {
-              sh 'docker exec mongo-test mongo "mongodb://testuser:testpass@localhost:27017/testdb?authSource=admin" --eval "db.adminCommand(\'ping\')" --quiet'
-              return true
-            } catch (e) {
-              sleep 5
-              return false
-            }
-          }
-        }
-        sh '''
-          npm test -- \
-            --ci \
-            --forceExit \
-            --testTimeout=60000 \
-            --detectOpenHandles \
-            --verbose \
-            --logHeapUsage
-        '''
-      }
+    script {
+      // Ensure Docker Compose is up
+      sh 'docker-compose -f docker-compose.yml up -d mongo-test'
+      
+      // Debug network connectivity
+      sh 'docker inspect mongo-test' // Check network details
+      sh 'docker network ls'         // List networks
+      
+      // Run tests inside the api container
+      sh '''
+        docker-compose -f docker-compose.yml run --rm api bash -c "npm test -- \
+          --ci \
+          --forceExit \
+          --testTimeout=60000 \
+          --detectOpenHandles \
+          --verbose \
+          --logHeapUsage"
+      '''
     }
   }
 }

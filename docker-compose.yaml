@@ -9,6 +9,8 @@ services:
     volumes:
       - "./backend/:/app"
       - "/app/node_modules"  # Empêche l'écrasement des dépendances
+    networks:
+      - app-network
 
   web:
     build:
@@ -49,7 +51,13 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: testpass
     volumes:
       - mongo-test-data:/data/db
+    networks:
+      - app-network
 
 volumes:
   db-data: {}
-  mongo-test-data: {}  
+  mongo-test-data: {} 
+
+networks:
+  app-network:
+    driver: bridge 
