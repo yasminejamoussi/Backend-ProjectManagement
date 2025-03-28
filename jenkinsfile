@@ -162,7 +162,7 @@ stage('Building Docker Images') {
             }
         }
 
-                   stage('Unit Test Backend') {
+                  /* stage('Unit Test Backend') {
     steps {
         dir('backend') {
             sh 'npm install --save-dev jest-junit'
@@ -171,6 +171,48 @@ stage('Building Docker Images') {
                     sh '''
                         sleep 30  # Attendre 30 secondes pour mongo-test
                         npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles || (echo "Tests failed, check logs" && cat jest-junit.xml && exit 1)
+                    '''
+                }
+            }
+        }
+    }
+}*/
+stage('Unit Test Backend') {
+    steps {
+        dir('backend') {
+            script {
+                // Attendre que MongoDB soit prêt
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitUntil {
+                        try {
+                            sh '''
+                                docker exec mongo-test mongosh \
+                                --eval "db.adminCommand('ping')" \
+                                --quiet > /dev/null 2>&1
+                            '''
+                            return true
+                        } catch (e) {
+                            sleep 5
+                            return false
+                        }
+                    }
+                }
+                
+                // Exécuter les tests avec timeout étendu
+                withEnv([
+                    'MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin',
+                    'NODE_ENV=test'
+                ]) {
+                    sh '''
+                        npm test -- \
+                        --ci \
+                        --forceExit \
+                        --reporters=default \
+                        --reporters=jest-junit \
+                        --verbose \
+                        --detectOpenHandles \
+                        --testTimeout=30000 \
+                        || (echo "Tests failed" && exit 1)
                     '''
                 }
             }

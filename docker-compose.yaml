@@ -36,6 +36,11 @@ services:
 
   mongo-test:  
     image: mongo:4.4
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')" --quiet
+      interval: 5s
+      timeout: 30s
+      retries: 5
     container_name: mongo-test
     ports:
       - "27018:27017"
