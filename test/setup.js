@@ -16,7 +16,7 @@ beforeAll(async () => {
         console.log("✅ MongoDB connecté avec succès");
     } catch (error) {
         console.error("❌ Échec de connexion MongoDB :", error);
-        throw error; // Fait échouer les tests si la connexion échoue
+        throw error; 
     }
 });
 
