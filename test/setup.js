@@ -1,44 +1,34 @@
 const mongoose = require("mongoose");
+const { createRoles } = require("../src/controllers/roleController");
 
-// Connexion à la base de données de test avant tous les tests
 beforeAll(async () => {
-    const mongoUri = process.env.MONGO_TEST_URI || "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
-    console.log("📢 Connexion à MongoDB pour les tests :", mongoUri);
+  const mongoUri = process.env.MONGO_TEST_URI || "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
+  
+  console.log("📢 Connexion à MongoDB pour les tests :", mongoUri);
+
+  try {
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+    });
     
-    try {
-        await mongoose.connect(mongoUri, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-            serverSelectionTimeoutMS: 30000,  // Augmentez à 30 secondes
-            socketTimeoutMS: 45000,           // Timeout de socket étendu
-            connectTimeoutMS: 30000           // Timeout de connexion étendu
-        });
-        console.log("✅ MongoDB connecté avec succès");
-    } catch (error) {
-        console.error("❌ Échec de connexion MongoDB :", error);
-        throw error; 
-    }
+    console.log("✅ MongoDB connecté");
+    await createRoles(); // Initialisation CRUCIALE des rôles
+  } catch (error) {
+    console.error("❌ Erreur de connexion :", error);
+    process.exit(1);
+  }
 });
 
-// Nettoyer la base de données avant chaque test
 beforeEach(async () => {
-    try {
-        const collections = mongoose.connection.collections;
-        for (const key in collections) {
-            await collections[key].deleteMany({});
-        }
-    } catch (error) {
-        console.error("⚠️ Erreur lors du nettoyage :", error);
-    }
+  try {
+    await mongoose.connection.db.dropDatabase();
+    await createRoles(); // Ré-init des rôles après chaque test
+  } catch (error) {
+    console.error("❌ Nettoyage échoué :", error);
+  }
 });
 
-// Fermer la connexion et nettoyer après tous les tests
 afterAll(async () => {
-    try {
-        await mongoose.connection.dropDatabase();
-        await mongoose.connection.close();
-        console.log("📢 Connexion MongoDB fermée après les tests");
-    } catch (error) {
-        console.error("⚠️ Erreur lors de la fermeture :", error);
-    }
+  await mongoose.disconnect();
 });

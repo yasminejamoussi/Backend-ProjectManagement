@@ -178,36 +178,35 @@ stage('Building Docker Images') {
     }
 }*/
 stage('Unit Test Backend') {
-    steps {
-        dir('backend') {
-            script {
-                // Version alternative pour vérifier MongoDB
-                timeout(time: 2, unit: 'MINUTES') {
-                    waitUntil {
-                        try {
-                            // Utilisez 'mongo' au lieu de 'mongosh' (plus ancien mais inclus dans l'image)
-                            sh 'docker exec mongo-test mongo --eval "db.adminCommand(\'ping\')" --quiet > /dev/null'
-                            return true
-                        } catch (e) {
-                            sleep 5
-                            return false
-                        }
-                    }
-                }
-                
-                // Exécution des tests
-                withEnv(['MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin']) {
-                    sh '''
-                        npm test -- \
-                        --ci \
-                        --forceExit \
-                        --testTimeout=30000 \
-                        --detectOpenHandles
-                    '''
-                }
+  steps {
+    dir('backend') {
+      script {
+        // Attente active de MongoDB
+        timeout(time: 2, unit: 'MINUTES') {
+          waitUntil {
+            try {
+              sh 'docker exec mongo-test mongo --eval "db.adminCommand(\'ping\')" --quiet'
+              return true
+            } catch (e) {
+              sleep 5
+              return false
             }
+          }
         }
+
+        // Exécution avec logging complet
+        sh '''
+          npm test -- \
+            --ci \
+            --forceExit \
+            --testTimeout=30000 \
+            --detectOpenHandles \
+            --verbose \
+            --logHeapUsage
+        '''
+      }
     }
+  }
 }
 
       stage('SonarQube Analysis') {
