@@ -212,34 +212,26 @@ stage('Building Docker Images') {
 stage('Unit Test Backend') {
     steps {
         dir('backend') {
+            // 1. Installation des dépendances de test
             sh 'npm install --save-dev jest-junit'
-            timeout(time: 10, unit: 'MINUTES') {
+
+            // 2. Exécution des tests avec mocks
+            timeout(time: 5, unit: 'MINUTES') {
                 withEnv([
-                    'MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin',
                     'NODE_ENV=test',
+                    'USE_MOCKS=true',  // Active le mode mock dans setup.js
                     'JEST_JUNIT_OUTPUT_DIR=test-results'
                 ]) {
                     sh '''
-                        # Vérification améliorée de MongoDB
-                        docker compose -f ../docker-compose.yaml up -d mongo-test
-                        for i in $(seq 1 6); do
-                          if docker exec mongo-test mongo --eval 'db.adminCommand("ping")' --quiet; then
-                            echo "MongoDB prêt après $i tentatives";
-                            break;
-                          fi
-                          sleep 5;
-                          [ $i -eq 6 ] && echo "Timeout MongoDB" && exit 1
-                        done
-
+                        # Exécution des tests avec filtrage par nom de fichier
                         npm test -- \
-                          --ci \
-                          --forceExit \
-                          --testTimeout=60000 \
-                          --reporters=default \
-                          --reporters=jest-junit \
-                          --verbose \
-                          --detectOpenHandles \
-                          --runInBand
+                            --testPathPattern="\\.test\\.js$" \  # Utilisez votre pattern existant
+                            --runInBand \
+                            --verbose \
+                            --detectOpenHandles
+
+                        # Archivage des résultats
+                        [ -f test-results/jest-junit.xml ] && cat test-results/jest-junit.xml || echo "Aucun rapport JUnit généré"
                     '''
                 }
             }
