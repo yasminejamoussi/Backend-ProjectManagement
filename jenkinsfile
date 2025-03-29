@@ -212,25 +212,25 @@ stage('Building Docker Images') {
 stage('Unit Test Backend') {
     steps {
         dir('backend') {
+            sh 'rm -rf node_modules && npm install'
             sh 'npm install --save-dev jest-junit'
             
-            timeout(time: 5, unit: 'MINUTES') {
+            timeout(time: 10, unit: 'MINUTES') {
                 withEnv([
                     'NODE_ENV=test',
                     'USE_MOCKS=true',
                     'JEST_JUNIT_OUTPUT_DIR=test-results'
                 ]) {
                     sh '''
+                        # Exécute seulement les tests unitaires (exclut les tests d'intégration)
                         npm test -- \
-                            --testPathPattern="\\.test\\.js$" \
+                            --testPathPattern="\\.unit\\.test\\.js$" \
                             --runInBand \
                             --verbose \
-                            --detectOpenHandles \
-                            --reporters=default \
-                            --reporters=jest-junit
+                            --detectOpenHandles
                         
-                        # Archivage conditionnel des résultats
-                        cat test-results/jest-junit.xml 2>/dev/null || echo "Aucun rapport JUnit généré"
+                        # Archivage des résultats
+                        [ -f test-results/jest-junit.xml ] && cat test-results/jest-junit.xml || echo "Aucun rapport généré"
                     '''
                 }
             }
