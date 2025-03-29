@@ -55,13 +55,7 @@ describe("Auth Controller Tests", () => {
 
     // Test pour register
     it("should register a new user", async () => {
-        User.findOne.mockResolvedValue(null); // Aucun utilisateur existant
-        const mockRole = {
-            _id: new mongoose.Types.ObjectId(),
-            name: "Admin",
-            save: jest.fn().mockResolvedValue(true),
-        };
-        Role.findOne.mockResolvedValue(mockRole); // Rôle Admin trouvé
+        const mockRole = { _id: new mongoose.Types.ObjectId(), name: "Admin" };
         const mockUser = {
             _id: new mongoose.Types.ObjectId(),
             firstname: "John",
@@ -72,7 +66,11 @@ describe("Auth Controller Tests", () => {
             role: mockRole._id,
             save: jest.fn().mockResolvedValue(true),
         };
-        User.mockImplementation(() => mockUser);
+        User.mockImplementation(() => ({
+            ...mockUser,
+            findOne: jest.fn().mockResolvedValue(null),
+        }));
+        Role.findOne.mockResolvedValue(mockRole);
 
         const res = await request(app)
             .post("/api/auth/register")
@@ -85,12 +83,14 @@ describe("Auth Controller Tests", () => {
             });
 
         expect(res.status).toBe(201);
-        expect(res.body.message).toBe("User registered successfully"); // Message en anglais
+        expect(res.body.message).toBe("User registered successfully");
         expect(mockUser.save).toHaveBeenCalled();
     });
 
     it("should fail to register if email exists", async () => {
-        User.findOne.mockResolvedValue({ email: "john@example.com" }); // Utilisateur existant
+        User.mockImplementation(() => ({
+            findOne: jest.fn().mockResolvedValue({ email: "john@example.com" }),
+        }));
 
         const res = await request(app)
             .post("/api/auth/register")
@@ -103,15 +103,12 @@ describe("Auth Controller Tests", () => {
             });
 
         expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Email already exists"); // Message en anglais
+        expect(res.body.message).toBe("Email already exists");
     });
 
     // Test pour login
     it("should login successfully", async () => {
-        const mockRole = {
-            _id: new mongoose.Types.ObjectId(),
-            name: "Admin",
-        };
+        const mockRole = { _id: new mongoose.Types.ObjectId(), name: "Admin" };
         const mockUser = {
             _id: new mongoose.Types.ObjectId(),
             email: "test@example.com",
@@ -126,30 +123,29 @@ describe("Auth Controller Tests", () => {
         User.findOne.mockReturnValue({
             populate: jest.fn().mockResolvedValue(mockUser),
         });
-        User.updateOne.mockResolvedValue({ modifiedCount: 1 }); // Simuler une mise à jour réussie
-        User.findById.mockResolvedValue(mockUser); // Pour le refreshedUser
+        User.updateOne.mockResolvedValue({ modifiedCount: 1 });
+        User.findById.mockResolvedValue(mockUser);
         LoginAttempt.create.mockResolvedValue({});
-        jest.spyOn(require("argon2"), "verify").mockResolvedValue(true); // Mot de passe correct
+        require("argon2").verify.mockResolvedValue(true);
         spawn.mockReturnValue({
-            stdout: {
-                on: jest.fn((event, callback) => {
-                    if (event === "data") callback("[]"); // Aucune tentative suspecte
-                }),
-            },
+            stdout: { on: jest.fn((event, cb) => { if (event === "data") cb("[]"); }) },
             stderr: { on: jest.fn() },
-            on: jest.fn((event, callback) => {
-                if (event === "close") callback(0); // Simuler la fin du processus Python
-            }),
+            on: jest.fn((event, cb) => { if (event === "close") cb(0); }),
         });
         jwt.sign.mockReturnValue("mock-token");
-
+    
         const res = await request(app)
             .post("/api/auth/login")
             .send({ email: "test@example.com", password: "password" });
-
+    
         expect(res.status).toBe(200);
         expect(res.body.message).toBe("Login successful");
         expect(res.body.token).toBe("mock-token");
+        expect(jwt.sign).toHaveBeenCalledWith(
+            { userId: mockUser._id.toString(), role: "Admin" }, // Ajuste selon ton contrôleur
+            "secret",
+            { expiresIn: "1h" }
+        );
     });
 
     it("should fail login with invalid credentials", async () => {

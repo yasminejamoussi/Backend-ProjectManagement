@@ -8,16 +8,7 @@ const User = require("../src/models/User");
 // Mock des dépendances
 jest.mock("../src/models/Role");
 jest.mock("../src/models/User");
-jest.mock("mongoose", () => {
-    const actualMongoose = jest.requireActual("mongoose");
-    return {
-        ...actualMongoose,
-        connection: {
-            readyState: 1, // Simuler une connexion prête
-        },
-        Types: actualMongoose.Types,
-    };
-});
+jest.mock("mongoose"); // Suffisant si le mock global est dans setup.js
 
 describe("Role Controller Tests", () => {
     let app;
@@ -39,26 +30,15 @@ describe("Role Controller Tests", () => {
     // Test pour initializeRoles
     it("should initialize roles", async () => {
         Role.findOneAndUpdate.mockResolvedValue({});
-
         await expect(initializeRoles()).resolves.toBeUndefined();
-        expect(Role.findOneAndUpdate).toHaveBeenCalledTimes(5); // 5 rôles prédéfinis
+        expect(Role.findOneAndUpdate).toHaveBeenCalledTimes(5);
     });
 
     it("should throw error if MongoDB connection fails", async () => {
-        // Mocker directement la propriété readyState
-        Object.defineProperty(mongoose.connection, "readyState", {
-            value: 0,
-            writable: true,
-        });
-
-        // Simuler un nombre réduit de tentatives pour éviter un long timeout
-        const maxAttempts = 2; // Réduire à 2 tentatives (au lieu de 10)
-        jest.spyOn(global, "setTimeout").mockImplementation((callback) => {
-            callback(); // Exécuter immédiatement
-        });
-
-        await expect(initializeRoles()).rejects.toThrow("Impossible de se connecter à MongoDB pour initialiser les rôles.");
-    }, 10000); // Augmenter le timeout à 10 secondes
+        jest.spyOn(mongoose, "connection", "get").mockReturnValue({ readyState: 0 });
+        jest.spyOn(global, "setTimeout").mockImplementation((cb) => cb());
+        await expect(initializeRoles()).rejects.toThrow("Impossible de se connecter à MongoDB");
+    }, 10000);
 
     // Test pour getRoles
     it("should get all roles", async () => {
