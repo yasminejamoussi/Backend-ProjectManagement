@@ -225,7 +225,7 @@ stage('Unit Test Backend') {
                     sh '''
                         # Exécution des tests avec filtrage par nom de fichier
                         npm test -- \
-                            --testPathPattern="\\.test\\.js$" \  # Utilisez votre pattern existant
+                            --testPathPattern="\\.test\\.js$" \  
                             --runInBand \
                             --verbose \
                             --detectOpenHandles
