@@ -11,7 +11,7 @@ jest.mock("../src/models/User");
 jest.mock("mongoose"); // Suffisant si le mock global est dans setup.js
 
 describe("Role Controller Tests", () => {
-    let app;
+    let app, server;
 
     beforeAll(() => {
         app = express();
@@ -21,6 +21,11 @@ describe("Role Controller Tests", () => {
         app.put("/api/roles/:roleId", updateRole);
         app.delete("/api/roles/:roleId", deleteRole);
         app.post("/api/roles/assign", assignRoleToUser);
+        server = app.listen(0); // Port dynamique
+    });
+
+    afterAll((done) => {
+        server.close(done); // Ferme le serveur après les tests
     });
 
     beforeEach(() => {
@@ -133,8 +138,9 @@ describe("Role Controller Tests", () => {
         const res = await request(app)
             .put("/api/roles/invalid-id")
             .send({ name: "UpdatedRole" });
-
+        console.log("Réponse pour invalid ID:", res.status, res.body); // Log temporaire
         expect(res.status).toBe(400);
         expect(res.body.message).toBe("ID de rôle invalide");
     });
+    
 });

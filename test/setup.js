@@ -1,15 +1,11 @@
 jest.mock('mongoose', () => {
     const actualMongoose = jest.requireActual('mongoose');
     const Schema = actualMongoose.Schema;
-
-    // Objet connection modifiable pour permettre des tests dynamiques
     const connection = {
-        readyState: 1, // Par défaut : connecté
+        readyState: 1,
         dropDatabase: jest.fn().mockResolvedValue(true),
         close: jest.fn().mockResolvedValue(true),
-        collections: {
-            users: { deleteMany: jest.fn().mockResolvedValue({}) }
-        }
+        collections: { users: { deleteMany: jest.fn().mockResolvedValue({}) } }
     };
 
     const mongooseMock = {
@@ -19,11 +15,9 @@ jest.mock('mongoose', () => {
             return new Schema(definition);
         }, {
             ...Schema,
-            Types: {
-                ObjectId: actualMongoose.Schema.Types.ObjectId // Pour générer des ObjectId
-            }
+            Types: { ObjectId: actualMongoose.Schema.Types.ObjectId }
         }),
-        connection // Exporté comme objet modifiable
+        connection
     };
 
     // Getter personnalisé pour permettre à jest.spyOn de fonctionner

@@ -37,7 +37,7 @@ jest.mock("jsonwebtoken");
 jest.mock("argon2");
 
 describe("Auth Controller Tests", () => {
-    let app;
+    let app, server;
 
     beforeAll(() => {
         app = express();
@@ -47,6 +47,11 @@ describe("Auth Controller Tests", () => {
         app.get("/api/auth/users", getUsers);
         app.put("/api/auth/users/:id", updateUser);
         app.delete("/api/auth/users/:id", deleteUser);
+        server = app.listen(0); // Port dynamique
+    });
+
+    afterAll((done) => {
+        server.close(done); // Ferme le serveur après les tests
     });
 
     beforeEach(() => {
@@ -184,11 +189,12 @@ describe("Auth Controller Tests", () => {
         });
 
         const res = await request(app)
-            .post("/api/auth/login")
-            .send({ email: "test@example.com", password: "wrong" });
-
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Invalid credentials");
+        .post("/api/auth/login")
+        .send({ email: "test@example.com", password: "wrong" });
+    console.log("Réponse pour login échoué:", res.status, res.body); // Log temporaire
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Invalid credentials");
+    
     });
 
     // Test pour getAllUsers
