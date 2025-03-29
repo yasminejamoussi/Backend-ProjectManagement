@@ -212,7 +212,8 @@ stage('Building Docker Images') {
 stage('Unit Test Backend') {
     steps {
         dir('backend') {
-            sh 'rm -rf node_modules && npm install'
+            sh 'rm -rf node_modules test-results coverage'
+            sh 'npm install'
             sh 'npm install --save-dev jest-junit'
             
             timeout(time: 10, unit: 'MINUTES') {
@@ -222,16 +223,23 @@ stage('Unit Test Backend') {
                     'JEST_JUNIT_OUTPUT_DIR=test-results'
                 ]) {
                     sh '''
-                        # Exécute seulement les tests unitaires (exclut les tests d'intégration)
+                        # Exécute seulement les tests unitaires
                         npm test -- \
-                            --testPathPattern="\\.unit\\.test\\.js$" \
+                             --ci \
                             --runInBand \
                             --verbose \
-                            --detectOpenHandles
+                            --detectOpenHandles \
+                            --testPathPattern="\\.unit\\.test\\.js$" \
+                            --reporters=default \
+                            --reporters=jest-junit \
+                            --collectCoverage \
+                            --coverageReporters=text-lcov \
+                            --coverageDirectory=coverage
                         
                         # Archivage des résultats
-                        [ -f test-results/jest-junit.xml ] && cat test-results/jest-junit.xml || echo "Aucun rapport généré"
-                    '''
+                            [ -f test-results/jest-junit.xml ] || exit 1
+                            [ -d coverage ] || exit 1
+                                '''
                 }
             }
         }
