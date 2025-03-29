@@ -178,7 +178,7 @@ stage('Building Docker Images') {
     }
 }*/
 
-stage('Unit Test Backend') {
+/*stage('Unit Test Backend') {
   steps {
     script {
       dir('backend') {
@@ -208,6 +208,47 @@ stage('Unit Test Backend') {
       }
     }
   }
+}*/
+stage('Unit Test Backend') {
+    steps {
+        dir('backend') {
+            sh 'npm install --save-dev jest-junit'
+            timeout(time: 10, unit: 'MINUTES') {
+                withEnv([
+                    'MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin',
+                    'NODE_ENV=test',
+                    'JEST_JUNIT_OUTPUT_DIR=test-results' // Variable nécessaire
+                ]) {
+                    sh '''
+                        # Attente optimisée pour MongoDB 4.4
+                        docker compose -f ../docker-compose.yaml up -d mongo-test
+                        for i in {1..6}; do
+                          if docker exec mongo-test mongo --eval 'db.adminCommand("ping")' --quiet; then
+                            echo "MongoDB prêt après $i tentatives";
+                            break;
+                          fi
+                          sleep 5;
+                          [ $i -eq 6 ] && echo "Timeout MongoDB" && exit 1
+                        done
+
+                        # Exécution avec chemin complet du reporter
+                        npm test -- \
+                          --ci \
+                          --forceExit \
+                          --testTimeout=60000 \
+                          --reporters=default \
+                          --reporters=jest-junit \
+                          --verbose \
+                          --detectOpenHandles \
+                          --runInBand
+
+                        # Vérification des résultats
+                        [ -f "test-results/results.xml" ] || { echo "Fichier de résultats non généré"; exit 1; }
+                    '''
+                }
+            }
+        }
+    }
 }
 
 
