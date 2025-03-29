@@ -111,23 +111,39 @@ pipeline {
                 }
             }
         }
-        stage('Deploy Backend to Nexus') {
-                    steps {
-                        script {
-                            echo "📤 Déploiement de l'image backend vers Nexus..."
-                            dir('backend') {
-                                def registry = "${NEXUS_URL}/repository/${NEXUS_REPOSITORY}"
-                                def registryCredentials = "${NEXUS_CREDENTIAL_ID}"
-                                def imageName = "${registry}/ProjectManagementApp:${env.BUILD_NUMBER}"
+       stage('Deploy Docker Image to Nexus') {
+    steps {
+        script {
+            echo "📤 Déploiement de l'image backend vers Nexus..."
+            dir('backend') {  // Changé de 'kaddem' à 'backend' pour correspondre à ton pipeline
+                // Définir les variables pour l'image
+                def imageName = "ProjectManagementApp"
+                def imageTag = "${env.BUILD_NUMBER}"
+                def fullImageName = "${imageName}:${imageTag}"
 
-                                sh "docker build -t ${imageName} ."
-                                docker.withRegistry("http://${registry}", registryCredentials) {
-                                    sh "docker push ${imageName}"
-                                }
-                            }
-                        }
-                    }
-                }
+                // Construire l'image Docker (assure-toi qu’un Dockerfile existe)
+                sh "docker build -t ${fullImageName} ."
+
+                // Sauvegarder l'image comme fichier tar
+                sh "docker save -o backend-image.tar ${fullImageName}"
+
+                // Déployer l'image via Maven vers Nexus
+                sh """
+                mvn deploy:deploy-file \
+                    -Dfile=backend-image.tar \
+                    -DgroupId=com.example \
+                    -DartifactId=backend-image \
+                    -Dversion=${imageTag} \
+                    -Dpackaging=tar \
+                    -DrepositoryId=nexus-releases \
+                    -Durl=${NEXUS_URL}/repository/maven-releases/ \
+                    -s /var/jenkins_home/.m2/settings.xml
+                """
+            }
+        }
+    }
+}
+              
         stage('Debug Directory') {
             steps {
                 echo "📂 Contenu de la racine :"
