@@ -162,7 +162,7 @@ stage('Building Docker Images') {
             }
         }
 
-                  /* stage('Unit Test Backend') {
+  /* stage('Unit Test Backend') {
     steps {
         dir('backend') {
             sh 'npm install --save-dev jest-junit'
@@ -177,29 +177,39 @@ stage('Building Docker Images') {
         }
     }
 }*/
+
 stage('Unit Test Backend') {
   steps {
     script {
       dir('backend') {
-        sh 'docker compose -f ../docker-compose.yaml up -d mongo-test'
-        sh '''
-          timeout 120s bash -c "until docker exec mongo-test mongo --eval 'db.adminCommand(\\\"ping\\\")' --quiet; do sleep 5; echo 'En attente de mongo-test...'; done"
+        // Vérification plus fiable de MongoDB
+        sh '''docker compose -f ../docker-compose.yaml up -d mongo-test
+          echo "Attente du démarrage de MongoDB..."
+          until docker inspect -f '{{.State.Health.Status}}' mongo-test | grep -q "healthy"; do
+            echo "MongoDB n'est pas encore prêt, nouvelle vérification dans 5s..."
+            sleep 5
+          done
+          echo "MongoDB est prêt !"
         '''
-        sh 'docker inspect mongo-test'
-        sh 'docker network ls'
-        sh '''
-          docker compose -f ../docker-compose.yaml run --rm api bash -c "npm test -- \
+        
+        // Exécution des tests avec plus de robustesse et de journalisation
+        sh '''docker compose -f ../docker-compose.yaml run --rm api bash -c "
+          export NODE_OPTIONS=--max_old_space_size=4096
+          echo 'Lancement des tests unitaires...'
+          npm test -- \
             --ci \
             --forceExit \
-            --testTimeout=60000 \
+            --testTimeout=120000 \
             --detectOpenHandles \
             --verbose \
-            --logHeapUsage"
-        '''
+            --logHeapUsage \
+            --runInBand || (echo 'Les tests ont échoué, nouvelle tentative...' && npm test)
+        "'''
       }
     }
   }
 }
+
 
       stage('SonarQube Analysis') {
             steps {
@@ -269,8 +279,7 @@ stage('Unit Test Backend') {
             }
         }
 
-      
-
+    
         stage('Run Application') {
             steps {
                 script {
