@@ -8,6 +8,7 @@ async function connectWithRetry(uri, retries = 5, delay = 5000) {
         serverSelectionTimeoutMS: 60000,
         socketTimeoutMS: 60000,
         connectTimeoutMS: 60000,
+        heartbeatFrequencyMS: 10000, // Maintient la connexion active
       });
       console.log("✅ MongoDB connecté avec succès");
       return;
@@ -16,25 +17,25 @@ async function connectWithRetry(uri, retries = 5, delay = 5000) {
       if (i < retries - 1) await new Promise(res => setTimeout(res, delay));
     }
   }
-  throw new Error("Échec de connexion à MongoDB après plusieurs tentatives");
+  throw new Error("Échec de connexion à MongoDB");
 }
 
 beforeAll(async () => {
-  const mongoUri = process.env.MONGO_TEST_URI || "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
+  const mongoUri = "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
   console.log("📢 Connexion à MongoDB pour les tests :", mongoUri);
   await connectWithRetry(mongoUri);
-  await initializeRoles();
-}, 120000); // 120s timeout
-
-beforeEach(async () => {
-  try {
-    await mongoose.connection.db.dropDatabase();
-    await initializeRoles(); // Ré-init des rôles après chaque test
-  } catch (error) {
-    console.error("❌ Nettoyage échoué :", error);
-  }
-});
+  await mongoose.connection.dropDatabase(); // Nettoyage initial
+  await initializeRoles(); // Initialisation une seule fois
+}, 120000);
 
 afterAll(async () => {
-  await mongoose.disconnect();
-});
+  try {
+    await mongoose.connection.dropDatabase(); // Nettoyage final
+    console.log("Base de données nettoyée");
+  } catch (error) {
+    console.error("❌ Nettoyage final échoué :", error);
+  } finally {
+    await mongoose.disconnect(); // Déconnexion en dernier
+    console.log("MongoDB déconnecté");
+  }
+}, 30000);
