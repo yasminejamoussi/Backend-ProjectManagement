@@ -220,16 +220,17 @@ stage('Unit Test Backend') {
                     'USE_MOCKS=true',
                     'JEST_JUNIT_OUTPUT_DIR=test-results'
                 ]) {
-                    sh '''#!/bin/bash
-                        # Exécution des tests avec filtrage par nom de fichier
-                        npm test -- \\
-                            --testPathPattern="\\\\.test\\\\.js$" \\
-                            --runInBand \\
-                            --verbose \\
-                            --detectOpenHandles
-
-                        # Archivage des résultats
-                        [ -f test-results/jest-junit.xml ] && cat test-results/jest-junit.xml || echo "Aucun rapport JUnit généré"
+                    sh '''
+                        npm test -- \
+                            --testPathPattern="\\.test\\.js$" \
+                            --runInBand \
+                            --verbose \
+                            --detectOpenHandles \
+                            --reporters=default \
+                            --reporters=jest-junit
+                        
+                        # Archivage conditionnel des résultats
+                        cat test-results/jest-junit.xml 2>/dev/null || echo "Aucun rapport JUnit généré"
                     '''
                 }
             }
