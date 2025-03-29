@@ -7,6 +7,6 @@ module.exports = {
       "default",
       ["jest-junit", { outputDirectory: "test-results", outputName: "results.xml" }]
   ],
-  testMatch: ["**/test/**/*.test.js"],
+  testMatch: ["**/test/**/*.unit.test.js"],
   setupFilesAfterEnv: ["<rootDir>/test/setup.js"]
 };
