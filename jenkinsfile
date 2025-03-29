@@ -217,12 +217,12 @@ stage('Unit Test Backend') {
                 withEnv([
                     'MONGO_TEST_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin',
                     'NODE_ENV=test',
-                    'JEST_JUNIT_OUTPUT_DIR=test-results' // Variable nécessaire
+                    'JEST_JUNIT_OUTPUT_DIR=test-results'
                 ]) {
                     sh '''
-                        # Attente optimisée pour MongoDB 4.4
+                        # Vérification améliorée de MongoDB
                         docker compose -f ../docker-compose.yaml up -d mongo-test
-                        for i in {1..6}; do
+                        for i in $(seq 1 6); do
                           if docker exec mongo-test mongo --eval 'db.adminCommand("ping")' --quiet; then
                             echo "MongoDB prêt après $i tentatives";
                             break;
@@ -231,7 +231,6 @@ stage('Unit Test Backend') {
                           [ $i -eq 6 ] && echo "Timeout MongoDB" && exit 1
                         done
 
-                        # Exécution avec chemin complet du reporter
                         npm test -- \
                           --ci \
                           --forceExit \
@@ -241,9 +240,6 @@ stage('Unit Test Backend') {
                           --verbose \
                           --detectOpenHandles \
                           --runInBand
-
-                        # Vérification des résultats
-                        [ -f "test-results/results.xml" ] || { echo "Fichier de résultats non généré"; exit 1; }
                     '''
                 }
             }

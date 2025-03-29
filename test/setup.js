@@ -1,18 +1,19 @@
 const mongoose = require("mongoose");
 const { initializeRoles } = require("../src/controllers/roleController");
 
-// Configuration spécifique pour MongoDB 4.4
-mongoose.set('useNewUrlParser', true);
-mongoose.set('useUnifiedTopology', true);
-mongoose.set('serverSelectionTimeoutMS', 10000);  // 10 secondes
-mongoose.set('socketTimeoutMS', 30000);          // 30 secondes
-mongoose.set('bufferCommands', false);           // Désactive le buffering
+// Configuration optimisée pour MongoDB 4.4
+mongoose.set('socketTimeoutMS', 30000);
+mongoose.set('serverSelectionTimeoutMS', 10000);
+mongoose.set('bufferCommands', false);
 
 beforeAll(async () => {
     console.log("🔌 Connexion à MongoDB pour les tests...");
     try {
         await mongoose.connect(process.env.MONGO_TEST_URI, {
-            heartbeatFrequencyMS: 5000  // Ping toutes les 5s
+            useNewUrlParser: true,       // Option passée dans connect()
+            useUnifiedTopology: true,    // Option passée dans connect()
+            serverSelectionTimeoutMS: 10000,
+            socketTimeoutMS: 30000
         });
         await mongoose.connection.dropDatabase();
         await initializeRoles();
@@ -21,10 +22,9 @@ beforeAll(async () => {
         console.error("❌ Échec connexion MongoDB:", err);
         throw err;
     }
-}, 30000);  // Timeout étendu à 30s
+}, 30000);
 
 afterEach(async () => {
-    // Nettoyage plus robuste pour MongoDB 4.4
     const collections = mongoose.connection.collections;
     for (const key in collections) {
         await collections[key].deleteMany({});
