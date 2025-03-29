@@ -222,17 +222,17 @@ stage('Unit Test Backend') {
                     'USE_MOCKS=true',  // Active le mode mock dans setup.js
                     'JEST_JUNIT_OUTPUT_DIR=test-results'
                 ]) {
-                    sh '''
-                        # Exécution des tests avec filtrage par nom de fichier
-                        npm test -- \
-                            --testPathPattern="\\.test\\.js$" \  
-                            --runInBand \
-                            --verbose \
-                            --detectOpenHandles
+                  sh '''
+    # Exécution des tests avec filtrage par nom de fichier
+    npm test -- \
+        --testPathPattern="\\.test\\.js$" \  
+        --runInBand \
+        --verbose \
+        --detectOpenHandles
 
-                        # Archivage des résultats
-                        [ -f test-results/jest-junit.xml ] && cat test-results/jest-junit.xml || echo "Aucun rapport JUnit généré"
-                    '''
+    # Archivage des résultats
+    [ -f test-results/jest-junit.xml ] && cat test-results/jest-junit.xml || echo "Aucun rapport JUnit généré"
+'''
                 }
             }
         }
