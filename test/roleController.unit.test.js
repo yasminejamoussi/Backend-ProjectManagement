@@ -37,12 +37,12 @@ describe("Role Controller Tests", () => {
         Role.findOneAndUpdate.mockResolvedValue({});
         await expect(initializeRoles()).resolves.toBeUndefined();
         expect(Role.findOneAndUpdate).toHaveBeenCalledTimes(5);
+        console.log("Initialize roles completed");
     });
 
     it("should throw error if MongoDB connection fails", async () => {
         jest.spyOn(mongoose, "connection", "get").mockReturnValue({ readyState: 0 });
-        jest.spyOn(global, "setTimeout").mockImplementation((cb) => cb());
-        await expect(initializeRoles()).rejects.toThrow("Impossible de se connecter à MongoDB");
+        await expect(initializeRoles()).rejects.toThrow("Impossible de se connecter à MongoDB pour initialiser les rôles.");
         console.log("Connection fail test completed");
     }, 10000);
 
@@ -55,8 +55,8 @@ describe("Role Controller Tests", () => {
         Role.find.mockReturnValue({
             populate: jest.fn().mockResolvedValue(mockRoles),
         });
-
         const res = await request(app).get("/api/roles");
+        console.log("Get all roles response:", res.status, res.body);
         expect(res.status).toBe(200);
         expect(res.body).toHaveLength(2);
     });
@@ -65,8 +65,8 @@ describe("Role Controller Tests", () => {
         Role.find.mockReturnValue({
             populate: jest.fn().mockResolvedValue([]),
         });
-
         const res = await request(app).get("/api/roles");
+        console.log("No roles found response:", res.status, res.body);
         expect(res.status).toBe(404);
         expect(res.body.message).toBe("Aucun rôle trouvé");
     });
@@ -81,11 +81,10 @@ describe("Role Controller Tests", () => {
             save: jest.fn().mockResolvedValue(true),
         };
         Role.mockImplementation(() => mockRole);
-
         const res = await request(app)
             .post("/api/roles")
             .send({ name: "TestRole", permissions: ["read"] });
-
+        console.log("Create role response:", res.status, res.body);
         expect(res.status).toBe(201);
         expect(res.body.message).toBe("Rôle créé avec succès");
         expect(mockRole.save).toHaveBeenCalled();
@@ -121,11 +120,10 @@ describe("Role Controller Tests", () => {
         };
         Role.findById.mockResolvedValue(mockRole);
         Role.findOne.mockResolvedValue(null);
-
         const res = await request(app)
             .put(`/api/roles/${mockRole._id}`)
             .send({ name: "UpdatedRole", permissions: ["read", "update"] });
-
+        console.log("Update role response:", res.status, res.body);
         expect(res.status).toBe(200);
         expect(res.body.message).toBe("Rôle mis à jour avec succès");
         expect(mockRole.name).toBe("UpdatedRole");
