@@ -133,7 +133,7 @@ describe("Auth Controller Tests", () => {
         LoginAttempt.create.mockResolvedValue({});
         require("argon2").verify.mockResolvedValue(true);
         spawn.mockReturnValue({
-            stdout: { on: jest.fn((event, cb) => { if (event === "data") cb("[]"); }) },
+            stdout: { on: jest.fn((event, cb) => { if (event === "data") cb(""); }) }, // Pas de "blocked"
             stderr: { on: jest.fn() },
             on: jest.fn((event, cb) => { if (event === "close") cb(0); }),
         });
@@ -143,11 +143,12 @@ describe("Auth Controller Tests", () => {
             .post("/api/auth/login")
             .send({ email: "test@example.com", password: "password" });
     
+        console.log("Login success response:", res.status, res.body);
         expect(res.status).toBe(200);
         expect(res.body.message).toBe("Login successful");
         expect(res.body.token).toBe("mock-token");
         expect(jwt.sign).toHaveBeenCalledWith(
-            { userId: mockUser._id.toString(), role: "Admin" }, // Ajuste selon ton contrôleur
+            { id: mockUser._id.toString(), role: "Admin" }, // Aligné avec le contrôleur
             "secret",
             { expiresIn: "1h" }
         );
@@ -194,7 +195,7 @@ describe("Auth Controller Tests", () => {
     console.log("Réponse pour login échoué:", res.status, res.body); // Log temporaire
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Invalid credentials");
-    
+
     });
 
     // Test pour getAllUsers

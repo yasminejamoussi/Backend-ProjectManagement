@@ -43,6 +43,7 @@ describe("Role Controller Tests", () => {
         jest.spyOn(mongoose, "connection", "get").mockReturnValue({ readyState: 0 });
         jest.spyOn(global, "setTimeout").mockImplementation((cb) => cb());
         await expect(initializeRoles()).rejects.toThrow("Impossible de se connecter à MongoDB");
+        console.log("Connection fail test completed");
     }, 10000);
 
     // Test pour getRoles
@@ -92,24 +93,22 @@ describe("Role Controller Tests", () => {
 
     it("should fail to create role if name exists", async () => {
         Role.findOne.mockResolvedValue({ name: "TestRole" });
-
         const res = await request(app)
             .post("/api/roles")
             .send({ name: "TestRole", permissions: ["read"] });
-
+        console.log("Create role fail (exists):", res.status, res.body);
         expect(res.status).toBe(400);
         expect(res.body.message).toBe("Un rôle avec ce nom existe déjà.");
     });
 
     it("should fail to create role with invalid permissions", async () => {
         Role.findOne.mockResolvedValue(null);
-
         const res = await request(app)
             .post("/api/roles")
             .send({ name: "TestRole", permissions: ["invalid"] });
-
+        console.log("Create role fail (permissions):", res.status, res.body);
         expect(res.status).toBe(400);
-        expect(res.body.message).toContain("Permissions invalides");
+        expect(res.body.message).toBe("Permissions invalides");
     });
 
     // Test pour updateRole
@@ -138,9 +137,9 @@ describe("Role Controller Tests", () => {
         const res = await request(app)
             .put("/api/roles/invalid-id")
             .send({ name: "UpdatedRole" });
-        console.log("Réponse pour invalid ID:", res.status, res.body); // Log temporaire
+        console.log("Update role fail:", res.status, res.body);
         expect(res.status).toBe(400);
         expect(res.body.message).toBe("ID de rôle invalide");
     });
-    
+
 });
