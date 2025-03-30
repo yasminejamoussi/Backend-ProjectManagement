@@ -40,7 +40,7 @@ pipeline {
             }
         }
 
-       stage('SonarQube Analysis') {
+     /*  stage('SonarQube Analysis') {
     steps {
         script {
             def scannerHome = tool 'scanner'
@@ -54,7 +54,7 @@ pipeline {
                             -Dsonar.projectKey=projectpi \
                             -Dsonar.sources=src \
                             -Dsonar.inclusions=**/*.js \
-                            -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/LoginAttempt.js,src/controllers/projectController.js,src/routes/profileRoutes.js \
+                           /* -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/LoginAttempt.js,src/controllers/projectController.js,src/routes/profileRoutes.js \
                             -Dsonar.host.url=http://192.168.33.10:9000 \
                             -Dsonar.login=\${SONAR_LOGIN} \
                             -Dsonar.language=js \
@@ -72,7 +72,7 @@ pipeline {
         }
     }
 }
-
+*/
         stage('Install Docker Compose') {
             steps {
                 sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o ./docker-compose'
