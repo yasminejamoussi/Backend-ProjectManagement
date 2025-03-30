@@ -122,15 +122,19 @@ describe("Auth Controller Tests", () => {
             anomaly_count: 0,
             save: jest.fn().mockResolvedValue(true),
         };
-        User.findOne.mockReturnValue({
+        // Mock pour le premier User.findOne avec populate
+        const findOneMock = jest.fn().mockReturnValue({
             populate: jest.fn().mockResolvedValue(mockUser),
         });
+        User.findOne.mockImplementation(findOneMock);
         User.updateOne.mockResolvedValue({ modifiedCount: 1 });
         User.findById.mockResolvedValue(mockUser);
+        // Mock pour refreshedUser (second appel à User.findOne)
+        findOneMock.mockResolvedValueOnce(mockUser).mockResolvedValueOnce(mockUser);
         LoginAttempt.create.mockResolvedValue({});
         require("argon2").verify.mockResolvedValue(true);
         spawn.mockReturnValue({
-            stdout: { on: jest.fn((event, cb) => { if (event === "data") cb(""); }) }, // Chaîne vide
+            stdout: { on: jest.fn((event, cb) => { if (event === "data") cb(""); }) },
             stderr: { on: jest.fn() },
             on: jest.fn((event, cb) => { if (event === "close") cb(0); }),
         });
@@ -138,13 +142,14 @@ describe("Auth Controller Tests", () => {
         const res = await request(app)
             .post("/api/auth/login")
             .send({ email: "test@example.com", password: "password" });
-        console.log("Login success response:", res.status, res.body); // Log pour debug
+        console.log("Login success response:", JSON.stringify(res.body, null, 2));
         expect(res.status).toBe(200);
         expect(res.body.message).toBe("Login successful");
         expect(res.body.token).toBe("mock-token");
-        expect(res.body.user).toBeDefined(); // Vérifie que user est inclus
+        expect(res.body.user).toBeDefined();
+        expect(res.body.user.email).toBe("test@example.com");
         expect(jwt.sign).toHaveBeenCalledWith(
-            { id: mockUser._id.toString(), role: "Admin" }, // Corrige userId -> id
+            { id: mockUser._id.toString(), role: "Admin" },
             "secret",
             { expiresIn: "1h" }
         );
