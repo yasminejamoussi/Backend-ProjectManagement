@@ -122,11 +122,12 @@ describe("Auth Controller Tests", () => {
             anomaly_count: 0,
             save: jest.fn().mockResolvedValue(true),
         };
-        User.findOne
-            .mockImplementationOnce(() => ({
-                populate: jest.fn().mockResolvedValue(mockUser),
-            }))
-            .mockResolvedValueOnce(mockUser);
+        // Définir un mock explicite avec jest.fn()
+        const findOneMock = jest.fn()
+            .mockReturnValueOnce({ populate: jest.fn().mockResolvedValue(mockUser) }) // Premier appel
+            .mockResolvedValueOnce(mockUser); // Second appel
+        User.findOne = findOneMock; // Assigner directement le mock
+        console.log("Mock User.findOne configuré :", findOneMock); // Vérifier le mock
         User.updateOne.mockResolvedValue({ modifiedCount: 1 });
         User.findById.mockResolvedValue(mockUser);
         LoginAttempt.create.mockResolvedValue({});
