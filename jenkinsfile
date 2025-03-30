@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+   agent {
+    label 'high-memory-agent'  // Utilise un agent avec plus de ressources si disponible
+   } 
 
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
@@ -51,12 +53,14 @@ pipeline {
                                 withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
                                     sh """
                                     ${scannerHome}/bin/sonar-scanner \
+                                    ${scannerHome}/bin/sonar-scanner \
                                     -Dsonar.projectKey=projectpi \
                                     -Dsonar.sources=src \
                                     -Dsonar.inclusions=**/*.js \
+                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/LoginAttempt.js \
                                     -Dsonar.host.url=http://192.168.33.10:9000 \
                                     -Dsonar.login=\${SONAR_LOGIN} \
-                                    -Dsonar.javascript.node.maxspace=4096 \
+                                    -Dsonar.javascript.node.maxspace=8192 \
                                     -Dsonar.verbose=true
                                     """
                                 }
