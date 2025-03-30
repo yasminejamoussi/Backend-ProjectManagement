@@ -178,37 +178,6 @@ stage('Building Docker Images') {
     }
 }*/
 
-/*stage('Unit Test Backend') {
-  steps {
-    script {
-      dir('backend') {
-        // Vérification plus fiable de MongoDB
-        sh '''docker compose -f ../docker-compose.yaml up -d mongo-test
-          echo "Attente du démarrage de MongoDB..."
-          until docker inspect -f '{{.State.Health.Status}}' mongo-test | grep -q "healthy"; do
-            echo "MongoDB n'est pas encore prêt, nouvelle vérification dans 5s..."
-            sleep 5
-          done
-          echo "MongoDB est prêt !"
-        '''
-        
-        // Exécution des tests avec plus de robustesse et de journalisation
-        sh '''docker compose -f ../docker-compose.yaml run --rm api bash -c "
-          export NODE_OPTIONS=--max_old_space_size=4096
-          echo 'Lancement des tests unitaires...'
-          npm test -- \
-            --ci \
-            --forceExit \
-            --testTimeout=120000 \
-            --detectOpenHandles \
-            --verbose \
-            --logHeapUsage \
-            --runInBand || (echo 'Les tests ont échoué, nouvelle tentative...' && npm test)
-        "'''
-      }
-    }
-  }
-}*/
 stage('Unit Test Backend') {
     steps {
         dir('backend') {
@@ -274,8 +243,8 @@ stage('Unit Test Backend') {
                                         -Dsonar.login=\${SONAR_LOGIN} \
                                         -Dsonar.javascript.node.maxspace=3072 \
                                         -Dsonar.verbose=true \
-                                        -Dsonar.scanner.skipJstsAnalysis=true \
-                                        -Dsonar.javascript.enabled=false
+                                        -Dsonar.junit.reportPaths=test-results/jest-junit.xml \
+                                        -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
                                     """
                                 }
                             }
