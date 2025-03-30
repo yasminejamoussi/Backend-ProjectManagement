@@ -53,6 +53,7 @@ pipeline {
                                     ${scannerHome}/bin/sonar-scanner \
                                     -Dsonar.projectKey=projectpi \
                                     -Dsonar.sources=src \
+                                    -Dsonar.inclusions=**/*.js \
                                     -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js \
                                     -Dsonar.host.url=http://192.168.33.10:9000 \
                                     -Dsonar.login=\${SONAR_LOGIN} \
