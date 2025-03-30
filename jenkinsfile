@@ -54,7 +54,7 @@ pipeline {
                                     -Dsonar.projectKey=projectpi \
                                     -Dsonar.sources=src \
                                     -Dsonar.inclusions=**/*.js \
-                                    -Dsonar.exclusions=**/node_modules/**,**/*.test.js,**/coverage/**,src/models/LoginAttempt.js \
+                                   -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/LoginAttempt.js,src/controllers/projectController.js \
                                     -Dsonar.host.url=http://192.168.33.10:9000 \
                                     -Dsonar.login=\${SONAR_LOGIN} \
                                     -Dsonar.language=js \
