@@ -60,7 +60,8 @@ pipeline {
                             -Dsonar.language=js \
                             -Dsonar.javascript.node.maxspace=8192 \
                             -Dsonar.javascript.node.timeout=60000 \
-                            -Dsonar.javascript.analysis.mode=simple \
+                            -Dsonar.javascript.environments=server \
+                            -Dsonar.scanner.skipJstsAnalysis=true \
                             -Dsonar.typescript.enabled=false \
                             -X
                             """
