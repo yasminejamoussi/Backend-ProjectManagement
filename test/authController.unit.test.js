@@ -122,15 +122,13 @@ describe("Auth Controller Tests", () => {
             anomaly_count: 0,
             save: jest.fn().mockResolvedValue(true),
         };
-        // Mock pour le premier User.findOne avec populate
-        const findOneMock = jest.fn().mockReturnValue({
+        // Définir le mock spécifiquement dans ce test
+        User.findOne.mockReturnValue({
             populate: jest.fn().mockResolvedValue(mockUser),
         });
-        User.findOne.mockImplementation(findOneMock);
         User.updateOne.mockResolvedValue({ modifiedCount: 1 });
         User.findById.mockResolvedValue(mockUser);
-        // Mock pour refreshedUser (second appel à User.findOne)
-        findOneMock.mockResolvedValueOnce(mockUser).mockResolvedValueOnce(mockUser);
+        User.findOne.mockResolvedValue(mockUser); // Pour refreshedUser
         LoginAttempt.create.mockResolvedValue({});
         require("argon2").verify.mockResolvedValue(true);
         spawn.mockReturnValue({
