@@ -40,13 +40,13 @@ pipeline {
             }
         }
 
-     /*  stage('SonarQube Analysis') {
+     stage('SonarQube Analysis') {
     steps {
         script {
             def scannerHome = tool 'scanner'
             withSonarQubeEnv('scanner') {
                 dir('backend') {
-                    echo "🚀 Démarrage de l'analyse SonarQube..."
+                    echo "🚀 Tentative d'analyse SonarQube (optionnelle)..."
                     timeout(time: 30, unit: 'MINUTES') {
                         withEnv(["SONAR_LOGIN=${SONAR_TOKEN}", "SONAR_SCANNER_OPTS=-Xmx8192m"]) {
                             sh """
@@ -54,16 +54,13 @@ pipeline {
                             -Dsonar.projectKey=projectpi \
                             -Dsonar.sources=src \
                             -Dsonar.inclusions=**/*.js \
-                           /* -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/LoginAttempt.js,src/controllers/projectController.js,src/routes/profileRoutes.js \
+                            -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/LoginAttempt.js,src/controllers/projectController.js,src/routes/profileRoutes.js \
                             -Dsonar.host.url=http://192.168.33.10:9000 \
                             -Dsonar.login=\${SONAR_LOGIN} \
                             -Dsonar.language=js \
                             -Dsonar.javascript.node.maxspace=8192 \
                             -Dsonar.javascript.node.timeout=60000 \
-                            -Dsonar.javascript.environments=server \
-                            -Dsonar.scanner.skipJstsAnalysis=true \
-                            -Dsonar.typescript.enabled=false \
-                            -X
+                            -X || true
                             """
                         }
                     }
@@ -72,7 +69,6 @@ pipeline {
         }
     }
 }
-*/
         stage('Install Docker Compose') {
             steps {
                 sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o ./docker-compose'
