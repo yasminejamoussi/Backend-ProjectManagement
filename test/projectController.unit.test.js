@@ -79,13 +79,15 @@ describe("Project Controller Tests", () => {
             tasks: [mockTask._id],
             save: jest.fn().mockResolvedValue(true),
         };
-
-        User.findById.mockResolvedValue(mockManager);
+    
+        User.findById.mockImplementation(() => ({
+            populate: jest.fn().mockResolvedValue(mockManager),
+        }));
         Role.find.mockResolvedValue([mockRole]);
         User.find.mockResolvedValue([mockTeamMember]);
         Task.insertMany.mockResolvedValue([mockTask]);
         Project.mockImplementation(() => mockProject);
-
+    
         const res = await request(app)
             .post("/api/projects")
             .send({
@@ -100,15 +102,17 @@ describe("Project Controller Tests", () => {
                 teamMembers: [mockTeamMember._id.toString()],
                 tasks: [{ title: "Task 1", status: "To Do", priority: "Medium" }],
             });
-
+    
         expect(res.status).toBe(201);
         expect(res.body.name).toBe("Test Project");
         expect(mockProject.save).toHaveBeenCalledTimes(2); // Initial save + tasks update
     });
 
     it("should fail to create project if projectManager is invalid", async () => {
-        User.findById.mockResolvedValue(null);
-
+        User.findById.mockImplementation(() => ({
+            populate: jest.fn().mockResolvedValue(null),
+        }));
+    
         const res = await request(app)
             .post("/api/projects")
             .send({
@@ -117,7 +121,7 @@ describe("Project Controller Tests", () => {
                 startDate: "2025-04-01",
                 endDate: "2025-04-30",
             });
-
+    
         expect(res.status).toBe(422);
         expect(res.body.error).toBe("Le projectManager n'existe pas.");
     });
@@ -232,12 +236,12 @@ describe("Project Controller Tests", () => {
         const mockProject = { _id: new mongoose.Types.ObjectId() };
         Project.findByIdAndDelete.mockResolvedValue(mockProject);
         Task.deleteMany.mockResolvedValue({ deletedCount: 2 });
-
+    
         const res = await request(app).delete(`/api/projects/${mockProject._id}`);
-
+    
         expect(res.status).toBe(200);
         expect(res.body.message).toBe("Projet et ses tâches supprimés avec succès");
-        expect(Task.deleteMany).toHaveBeenCalledWith({ project: mockProject._id });
+        expect(Task.deleteMany).toHaveBeenCalledWith({ project: mockProject._id.toString() }); // Accepte la string
     });
 
     it("should return 404 if project to delete not found", async () => {

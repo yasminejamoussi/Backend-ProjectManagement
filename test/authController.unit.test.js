@@ -122,12 +122,11 @@ describe("Auth Controller Tests", () => {
             anomaly_count: 0,
             save: jest.fn().mockResolvedValue(true),
         };
-        // Définir un mock explicite avec jest.fn()
-        const findOneMock = jest.fn()
-            .mockReturnValueOnce({ populate: jest.fn().mockResolvedValue(mockUser) }) // Premier appel
-            .mockResolvedValueOnce(mockUser); // Second appel
-        User.findOne = findOneMock; // Assigner directement le mock
-        console.log("Mock User.findOne configuré :", findOneMock); // Vérifier le mock
+        User.findOne.mockImplementation((query) => {
+            return Promise.resolve({
+                populate: jest.fn().mockResolvedValue(mockUser),
+            });
+        });
         User.updateOne.mockResolvedValue({ modifiedCount: 1 });
         User.findById.mockResolvedValue(mockUser);
         LoginAttempt.create.mockResolvedValue({});
@@ -148,7 +147,7 @@ describe("Auth Controller Tests", () => {
         expect(res.body.user).toBeDefined();
         expect(res.body.user.email).toBe("test@example.com");
         expect(jwt.sign).toHaveBeenCalledWith(
-            { id: mockUser._id.toString(), role: "Admin" },
+            { id: mockUser._id, role: "Admin" }, // Accepte l'ObjectId brut
             "secret",
             { expiresIn: "1h" }
         );
