@@ -93,10 +93,7 @@ describe("Auth Controller Tests", () => {
     });
 
     it("should fail to register if email exists", async () => {
-        User.mockImplementation(() => ({
-            findOne: jest.fn().mockResolvedValue({ email: "john@example.com" }),
-        }));
-
+        User.findOne.mockResolvedValue({ email: "john@example.com" });
         const res = await request(app)
             .post("/api/auth/register")
             .send({
@@ -106,7 +103,7 @@ describe("Auth Controller Tests", () => {
                 phone: "+123456789",
                 password: "Password123",
             });
-
+        console.log("Register fail response:", res.status, res.body); // Log pour debug
         expect(res.status).toBe(400);
         expect(res.body.message).toBe("Email already exists");
     });
@@ -133,22 +130,21 @@ describe("Auth Controller Tests", () => {
         LoginAttempt.create.mockResolvedValue({});
         require("argon2").verify.mockResolvedValue(true);
         spawn.mockReturnValue({
-            stdout: { on: jest.fn((event, cb) => { if (event === "data") cb(""); }) }, // Pas de "blocked"
+            stdout: { on: jest.fn((event, cb) => { if (event === "data") cb(""); }) }, // Chaîne vide
             stderr: { on: jest.fn() },
             on: jest.fn((event, cb) => { if (event === "close") cb(0); }),
         });
         jwt.sign.mockReturnValue("mock-token");
-    
         const res = await request(app)
             .post("/api/auth/login")
             .send({ email: "test@example.com", password: "password" });
-    
-        console.log("Login success response:", res.status, res.body);
+        console.log("Login success response:", res.status, res.body); // Log pour debug
         expect(res.status).toBe(200);
         expect(res.body.message).toBe("Login successful");
         expect(res.body.token).toBe("mock-token");
+        expect(res.body.user).toBeDefined(); // Vérifie que user est inclus
         expect(jwt.sign).toHaveBeenCalledWith(
-            { id: mockUser._id.toString(), role: "Admin" }, // Aligné avec le contrôleur
+            { id: mockUser._id.toString(), role: "Admin" }, // Corrige userId -> id
             "secret",
             { expiresIn: "1h" }
         );
