@@ -1,7 +1,5 @@
 pipeline {
-   agent {
-    label 'high-memory-agent'  // Utilise un agent avec plus de ressources si disponible
-   } 
+    agent any
 
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
