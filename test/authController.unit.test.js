@@ -115,20 +115,19 @@ describe("Auth Controller Tests", () => {
             _id: new mongoose.Types.ObjectId(),
             email: "test@example.com",
             password: "hashedPassword",
-            role: mockRole,
+            role: mockRole, // Objet rôle complet avec name
             isTwoFactorEnabled: false,
             blocked: false,
             blocked_until: null,
             anomaly_count: 0,
             save: jest.fn().mockResolvedValue(true),
         };
-        // Définir un mock explicite pour User.findOne
-        const findOneMock = jest.fn()
-            .mockReturnValueOnce({ // Premier appel : user avec populate
+        // Espionner User.findOne et contrôler ses appels
+        jest.spyOn(User, 'findOne')
+            .mockImplementationOnce(() => ({
                 populate: jest.fn().mockResolvedValue(mockUser),
-            })
-            .mockResolvedValueOnce(mockUser); // Second appel : refreshedUser
-        User.findOne.mockImplementation(findOneMock);
+            }))
+            .mockResolvedValueOnce(mockUser); // Pour refreshedUser
         User.updateOne.mockResolvedValue({ modifiedCount: 1 });
         User.findById.mockResolvedValue(mockUser);
         LoginAttempt.create.mockResolvedValue({});
@@ -149,7 +148,7 @@ describe("Auth Controller Tests", () => {
         expect(res.body.user).toBeDefined();
         expect(res.body.user.email).toBe("test@example.com");
         expect(jwt.sign).toHaveBeenCalledWith(
-            { id: mockUser._id.toString(), role: "Admin" },
+            { id: mockUser._id.toString(), role: "Admin" }, // Nom du rôle dans le token
             "secret",
             { expiresIn: "1h" }
         );
