@@ -30,7 +30,7 @@ jest.mock('mongoose', () => {
 });
 
 // Réinitialiser les mocks avant chaque test
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => jest.resetAllMocks());
 
 // Restaurer les mocks après tous les tests
 afterAll(() => jest.restoreAllMocks());
