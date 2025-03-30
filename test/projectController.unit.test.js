@@ -52,10 +52,16 @@ describe("Project Controller Tests", () => {
     it("should create a new project successfully", async () => {
         const mockManager = {
             _id: new mongoose.Types.ObjectId(),
+            firstname: "John",
+            lastname: "Doe",
+            email: "john@example.com",
             role: { name: "Project Manager" },
         };
         const mockTeamMember = {
             _id: new mongoose.Types.ObjectId(),
+            firstname: "Jane",
+            lastname: "Doe",
+            email: "jane@example.com",
             role: { name: "Team Member" },
         };
         const mockRole = { _id: new mongoose.Types.ObjectId(), name: "Team Member" };
@@ -80,11 +86,15 @@ describe("Project Controller Tests", () => {
             save: jest.fn().mockResolvedValue(true),
         };
     
+        // Mock pour le projectManager avec User.findById
         User.findById.mockImplementation(() => ({
             populate: jest.fn().mockResolvedValue(mockManager),
         }));
+        // Mock pour les teamMembers avec User.find
+        User.find.mockImplementation(() => ({
+            populate: jest.fn().mockResolvedValue([mockTeamMember]),
+        }));
         Role.find.mockResolvedValue([mockRole]);
-        User.find.mockResolvedValue([mockTeamMember]);
         Task.insertMany.mockResolvedValue([mockTask]);
         Project.mockImplementation(() => mockProject);
     
