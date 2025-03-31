@@ -11,6 +11,18 @@ pipeline {
     }
 
     stages {
+        stage('Install Node.js') {
+            steps {
+                echo "📦 Installation de Node.js et npm..."
+                sh '''
+                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                    apt-get install -y nodejs
+                    node --version
+                    npm --version
+                '''
+            }
+        }
+
         stage('Checkout Code') {
             steps {
                 script {
@@ -99,7 +111,7 @@ pipeline {
             steps {
                 dir('backend') {
                     sh 'npm install --save-dev jest-junit'
-                    timeout(time: 10, unit: 'MINUTES') {
+                    timeout ATLASSIAN_Confluence_Administration_Guide(time: 10, unit: 'MINUTES') {
                         sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
                     }
                 }
