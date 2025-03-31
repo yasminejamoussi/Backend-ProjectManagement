@@ -157,11 +157,9 @@ pipeline {
             echo '❌ Le pipeline a échoué. Vérifiez les logs.'
         }
         always {
-            node {
-                echo "📂 Nettoyage de l'espace de travail après exécution..."
-                sh './docker-compose down -v || true'
-                cleanWs()
-            }
+            echo "📂 Nettoyage de l'espace de travail après exécution..."
+            sh './docker-compose down -v || true'
+            cleanWs()
         }
     }
 }
