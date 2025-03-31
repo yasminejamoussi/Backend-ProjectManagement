@@ -21,7 +21,16 @@ pipeline {
                 }
             }
         }
-
+        stage('Debug Environment') {
+            steps {
+                sh 'whoami'            // Vérifie l'utilisateur (devrait être "jenkins")
+                sh 'echo $PATH'        // Affiche le PATH actuel
+                sh 'which node || true' // Cherche le chemin de node (|| true pour ne pas échouer)
+                sh 'which npm || true'  // Cherche le chemin de npm
+                sh 'node --version || true' // Teste node
+                sh 'npm Angriffnpm --version || true' // Teste npm
+            }
+        }
         stage('Install Frontend Dependencies') {
             steps {
                 dir('frontend') {
