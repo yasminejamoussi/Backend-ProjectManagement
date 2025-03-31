@@ -47,7 +47,7 @@ pipeline {
             withSonarQubeEnv('scanner') {
                 dir('backend') {
                     echo "🚀 Tentative d'analyse SonarQube (optionnelle)..."
-                    timeout(time: 2, unit: 'MINUTES') {
+                    timeout(time: 10, unit: 'MINUTES') {
                         withEnv(["SONAR_LOGIN=${SONAR_TOKEN}", "SONAR_SCANNER_OPTS=-Xmx8192m"]) {
                             sh """
                             ${scannerHome}/bin/sonar-scanner \
