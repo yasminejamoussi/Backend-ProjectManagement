@@ -60,8 +60,10 @@ pipeline {
                                 withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
                                     sh """
                                     ${scannerHome}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=projectpi \
+                                    -Dsonar.projectKey=ProjectManagementPI \
+                                    -Dsonar.projectName=ProjectManagementPI \
                                     -Dsonar.sources=src \
+                                    -Dsonar.language=js \
                                     -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/*.js,src/controllers/*.js,src/routes/*.js \
                                     -Dsonar.host.url=http://192.168.33.10:9000 \
                                     -Dsonar.login=\${SONAR_LOGIN} \
