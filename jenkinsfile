@@ -1,0 +1,196 @@
+pipeline {
+    agent any
+
+    environment {
+        BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
+        FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
+        SONAR_TOKEN = credentials('sonarqube-token')
+        NEXUS_URL = 'http://192.168.33.10:8081'  // Remplacez par votre URL Nexus
+        NEXUS_REPOSITORY = 'dockr-repo'     // Remplacez par le nom de votre repo
+        NEXUS_CREDENTIAL_ID = 'nexus-credentials'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                script {
+                    echo "📥 Clonage du Backend..."
+                    sh "git clone -b cicd ${BACKEND_REPO} backend"
+                    echo "📥 Clonage du Frontend..."
+                    sh "git clone ${FRONTEND_REPO} frontend"
+                }
+            }
+        }
+
+        stage('Install Frontend Dependencies') {
+            steps {
+                dir('frontend') {
+                    echo "📦 Installation des dépendances du frontend..."
+                    sh 'npm install'
+                }
+            }
+        }
+
+        stage('Install Backend Dependencies') {
+            steps {
+                dir('backend') {
+                    echo "📦 Installation des dépendances du backend..."
+                    sh 'npm install'
+                }
+            }
+        }
+
+     stage('SonarQube Analysis') {
+    steps {
+        script {
+            def scannerHome = tool 'scanner'
+            withSonarQubeEnv('scanner') {
+                dir('backend') {
+                    echo "🚀 Tentative d'analyse SonarQube (optionnelle)..."
+                    timeout(time: 30, unit: 'MINUTES') {
+                        withEnv(["SONAR_LOGIN=${SONAR_TOKEN}", "SONAR_SCANNER_OPTS=-Xmx8192m"]) {
+                            sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=projectpi \
+                            -Dsonar.sources=src \
+                            -Dsonar.inclusions=**/*.js \
+                            -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/LoginAttempt.js,src/controllers/projectController.js,src/routes/profileRoutes.js \
+                            -Dsonar.host.url=http://192.168.33.10:9000 \
+                            -Dsonar.login=\${SONAR_LOGIN} \
+                            -Dsonar.language=js \
+                            -Dsonar.javascript.node.maxspace=8192 \
+                            -Dsonar.javascript.node.timeout=60000 \
+                            -X || true
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+        stage('Install Docker Compose') {
+            steps {
+                sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o ./docker-compose'
+                sh 'chmod +x ./docker-compose'
+                sh './docker-compose --version'
+            }
+        }
+
+        stage('Clean Docker Environment') {
+            steps {
+                echo "🧹 Nettoyage de l'environnement Docker..."
+                sh './docker-compose down -v --rmi local || true'
+                sh 'docker system prune -f || true'
+            }
+        }
+
+        stage('Start Docker Services') {
+            steps {
+                script {
+                    echo "🚀 Démarrage des services Docker..."
+                    sh './docker-compose -f docker-compose.yaml up -d'
+                }
+            }
+        }
+
+        stage('Unit Test Backend') {
+            steps {
+                dir('backend') {
+                    sh 'npm install --save-dev jest-junit'
+                    timeout(time: 10, unit: 'MINUTES') {
+                        sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
+                    }
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                dir('frontend') {
+                    echo "🛠️ Construction du frontend..."
+                    sh 'npm run build'
+                }
+            }
+        }
+      /* stage('Deploy Docker Image to Nexus') {
+    steps {
+        script {
+            echo "📤 Déploiement de l'image backend vers Nexus..."
+            dir('backend') {  // Changé de 'kaddem' à 'backend' pour correspondre à ton pipeline
+                // Définir les variables pour l'image
+                def imageName = "ProjectManagementApp"
+                def imageTag = "${env.BUILD_NUMBER}"
+                def fullImageName = "${imageName}:${imageTag}"
+
+                // Construire l'image Docker (assure-toi qu’un Dockerfile existe)
+                sh "docker build -t ${fullImageName} ."
+
+                // Sauvegarder l'image comme fichier tar
+                sh "docker save -o backend-image.tar ${fullImageName}"
+
+                // Déployer l'image via Maven vers Nexus
+                sh """
+                mvn deploy:deploy-file \
+                    -Dfile=backend-image.tar \
+                    -DgroupId=com.example \
+                    -DartifactId=backend-image \
+                    -Dversion=${imageTag} \
+                    -Dpackaging=tar \
+                    -DrepositoryId=nexus-releases \
+                    -Durl=${NEXUS_URL}/repository/maven-releases/ \
+                    -s /var/jenkins_home/.m2/settings.xml
+                """
+            }
+        }
+    }
+}*/
+              
+        stage('Debug Directory') {
+            steps {
+                echo "📂 Contenu de la racine :"
+                sh 'ls -la'
+                dir('backend') {
+                    echo "📂 Contenu de backend :"
+                    sh 'ls -la'
+                }
+                dir('frontend') {
+                    echo "📂 Contenu de frontend :"
+                    sh 'ls -la'
+                }
+            }
+        }
+
+        stage('Building Docker Images') {
+            steps {
+                script {
+                    echo "🚀 Build des images Docker..."
+                    sh './docker-compose -f docker-compose.yaml build'
+                }
+            }
+        }
+
+        stage('Run Application') {
+            steps {
+                script {
+                    echo "🚀 Démarrage de l'application..."
+                    sh './docker-compose -f docker-compose.yaml up -d'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Pipeline exécuté avec succès !'
+        }
+        failure {
+            echo '❌ Le pipeline a échoué. Vérifiez les logs.'
+        }
+        always {
+            echo "📂 Nettoyage de l'espace de travail après exécution..."
+            sh './docker-compose down -v || true'
+            cleanWs()
+        }
+    }
+}

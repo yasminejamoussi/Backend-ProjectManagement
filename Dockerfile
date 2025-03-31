@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
 # Create a Python virtual environment and install required packages
 RUN python3 -m venv /venv && \
     /venv/bin/pip install --upgrade pip && \
-    /venv/bin/pip install pandas pymongo scikit-learn
+    /venv/bin/pip install pandas pymongo scikit-learn spacy nltk && \
+    /venv/bin/python -m spacy download en_core_web_sm
 
 # Set the virtual environment path to use it
 ENV PATH="/venv/bin:$PATH"
@@ -19,12 +20,13 @@ ENV PATH="/venv/bin:$PATH"
 COPY package*.json ./
 
 # Install Node.js dependencies
-RUN npm install
+RUN npm install && npm install brain.js@1.6.0
 
 # Copy the rest of the backend code
+
 COPY . .
 
-# Expose the port your app runs on
+# Expose the port for Node.js
 EXPOSE 4000
 
 # Start the backend server

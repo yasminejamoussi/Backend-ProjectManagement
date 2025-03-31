@@ -4,7 +4,7 @@ const roleSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    unique: true
+    enum: ["Admin", "Project Manager", "Team Leader", "Team Member", "Guest"], 
   },
   permissions: {
     type: [String],
@@ -12,7 +12,7 @@ const roleSchema = new mongoose.Schema({
   },
   users: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',  // Assurez-vous que le modèle 'User' est correctement référencé
+    ref: 'User',  
   }]
 });
 

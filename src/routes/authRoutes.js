@@ -2,15 +2,14 @@ const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
-const { googleAuth,sendResetCode,verifyResetCode,resetPassword ,loginWithFace ,generate2FA,} = require('../controllers/authController');
+const {register,registerFaceLabel, googleAuth,sendResetCode,verifyResetCode,resetPassword ,loginWithFace ,generate2FA,generateStrongPassword,login} = require('../controllers/authController');
 
 // Auth Routes
-router.post("/register", userController.register);
-router.post("/login", userController.login);
-router.get("/profile", authMiddleware, userController.getProfile);
+router.post("/register", register);
+router.post("/login", login);
 router.get("/google", googleAuth);
 router.post('/login-with-face',loginWithFace );
-router.post("/register-face-label", userController.registerFaceLabel);
+router.post("/register-face-label", registerFaceLabel);
 
 // Password Reset Routes
 router.post("/forgot-password", sendResetCode);
@@ -23,9 +22,10 @@ router.put("/users/:id", userController.updateUser);
 router.delete("/users/:id",userController.deleteUser);
 
 //2FA
-router.post("/generate-2fa", generate2FA);  
+router.post("/generate-2fa",userController.generate2FA);  
 router.post("/enable-2fa",userController.enable2FA);  
 router.post("/verify-2fa", userController.verify2FA);  
-
+// Password Generator
+router.get("/generate-password", generateStrongPassword);
 
 module.exports = router;

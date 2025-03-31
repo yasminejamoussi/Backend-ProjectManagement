@@ -9,6 +9,42 @@ const LoginAttempt = require('../models/LoginAttempt');
 const { spawn } = require("child_process");
 const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
+const Role = require('../models/Role'); // Assure-toi d'importer le modèle de rôle
+const path = require("path");
+
+// Fonction pour générer un mot de passe fort
+exports.generateStrongPassword = (req, res) => {
+    console.log("Démarrage de la génération du mot de passe...");
+
+    // Définition du chemin vers le script Python
+    const scriptPath = path.join(__dirname, "..", "scripts", "generate_password.py");
+    console.log("Chemin vers le script Python:", scriptPath);  // Log pour vérifier le chemin du script
+
+    const pythonProcess = spawn("python", [scriptPath, "16"]); // Longueur du mot de passe : 16 caractères
+    let password = "";
+
+    // Gérer la sortie standard
+    pythonProcess.stdout.on("data", (data) => {
+        console.log("Sortie du processus Python:", data.toString());
+        password += data.toString();
+    });
+
+    // Gérer les erreurs
+    pythonProcess.stderr.on("data", (data) => {
+        console.error("Erreur dans le processus Python:", data.toString());
+        return res.status(500).json({ error:`Erreur Python : ${data.toString()}`  });
+    });
+
+    // Lorsque le processus Python se termine
+    pythonProcess.on("close", (code) => {
+        if (code === 0) {
+            console.log("Mot de passe généré :", password.trim());
+            res.json({ password: password.trim() }); // Répondre avec le mot de passe généré
+        } else {
+            return res.status(500).json({ error: ` Le processus Python s'est terminé avec le code ${code} ` });
+        }
+    });
+};
 
 exports.generate2FA = async (req, res) => {
     try {
@@ -37,8 +73,7 @@ exports.generate2FA = async (req, res) => {
       console.error("Erreur lors de la génération du 2FA:", error);
       res.status(500).json({ message: "Erreur serveur" });
     }
-  };
-  
+  }; 
   // Activer le 2FA après validation du code
   exports.enable2FA = async (req, res) => {
     try {
@@ -77,7 +112,7 @@ exports.generate2FA = async (req, res) => {
   exports.verify2FA = async (req, res) => {
     try {
       const { email, token } = req.body;
-      const user = await User.findOne({ email });
+      const user = await User.findOne({ email }).populate('role');
       if (!user || !user.isTwoFactorEnabled) {
         return res.status(400).json({ message: "2FA non activé pour cet utilisateur." });
       }
@@ -96,7 +131,7 @@ exports.generate2FA = async (req, res) => {
   
       // Générer un token JWT après validation
       const authToken = jwt.sign(
-        { id: user._id, role: user.role },
+        { id: user._id, role: user.role.name },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN }
       );
@@ -107,13 +142,10 @@ exports.generate2FA = async (req, res) => {
       res.status(500).json({ message: "Erreur serveur" });
     }
   };
-  
 // Register a new user
 exports.register = async (req, res) => {
     try {
         const { firstname, lastname, phone, email, password } = req.body;
-
-
         
         // Validation checks
         if (!firstname || !lastname || !phone || !email || !password) {
@@ -143,6 +175,14 @@ exports.register = async (req, res) => {
         if (userExists) {
             return res.status(400).json({ message: "Email already exists" });
         }
+
+        // Vérifier si le rôle "Guest" existe, sinon le créer
+    let guestRole = await Role.findOne({ name: 'Admin' });
+    if (!guestRole) {
+      guestRole = new Role({ name: 'Admin' });
+      await guestRole.save();
+    }
+
         // Create new user
         const user = new User({
             firstname,
@@ -150,6 +190,8 @@ exports.register = async (req, res) => {
             phone,
             email,
             password,
+            role: guestRole._id, 
+
         });
         await user.save();
 
@@ -160,147 +202,6 @@ exports.register = async (req, res) => {
     }
 };
 
-/* // Login a user
-exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        console.log("Login Request:", { email, password });
-
-        const user = await User.findOne({ email });
-        if (!user) {
-            console.log("User not found for email:", email);
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
-
-        if (user.googleId) {
-            // User logged in through Google, no password needed
-            const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-                expiresIn: process.env.JWT_EXPIRES_IN,
-            });
-            console.log("Token Generated (Google Login):", token);
-            return res.json({ token, user });
-        }
-
-        const isMatch = await argon2.verify(user.password, password);
-        if (!isMatch) {
-            console.log("Invalid password for user:", user.email);
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
-
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRES_IN,
-        });
-
-        console.log("Token Generated:", token);
-
-        res.json({ token, user });
-    } catch (error) {
-        console.error("Error logging in:", error.message);
-        console.error("Stack Trace:", error.stack);
-        res.status(500).json({ message: "Server error" });
-    }
-}; */
-/*exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const ip = req.ip;
-
-        console.log("Login Request:", { email });
-
-        // Vérifier si l'utilisateur existe
-        const user = await User.findOne({ email });
-        if (!user) {
-            console.log("User not found for email:", email);
-            await LoginAttempt.create({ email, ip, success: false });
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
-
-        // Vérifier si l'utilisateur est bloqué avant toute tentative
-        if (user.blocked && new Date() < user.blocked_until) {
-            console.log(`User ${email} is blocked until ${user.blocked_until}.`);
-            return res.status(403).json({ message:` Votre compte est bloqué jusqu'à ${user.blocked_until}. `});
-        }
-
-        // Débloquer si le temps de blocage est écoulé
-        if (user.blocked && new Date() >= user.blocked_until) {
-            await User.updateOne(
-                { email },
-                { $set: { blocked: false, blocked_until: null, anomaly_count: 0 } }
-            );
-            await LoginAttempt.deleteMany({ email, success: false });
-            console.log(`User ${email} débloqué.`);
-        }
-
-        // Vérifier le mot de passe
-        const isMatch = await argon2.verify(user.password, password);
-        await LoginAttempt.create({ email, ip, success: isMatch });
-
-        // Exécuter le script Python pour détecter les anomalies
-        const pythonProcess = spawn("python3", ["src/scripts/detect_anomalies.py", email, ip, isMatch.toString()]);
-        let pythonOutput = "";
-
-        pythonProcess.stdout.on("data", (data) => {
-            pythonOutput += data.toString();
-            console.log(`Python Output: ${data.toString().trim()}`);
-        });
-
-        pythonProcess.stderr.on("data", (data) => {
-            console.error(`Python Error: ${data}`);
-        });
-
-        pythonProcess.on("close", async (code) => {
-            console.log(`Python process exited with code ${code}`);
-            const output = pythonOutput.trim();
-
-            // 🔥 Vérifier si Python a détecté un blocage
-            if (output.includes("blocked")) {
-                console.log(`🚨 User ${email} is now blocked. No token will be generated.`);
-                return res.status(403).json({ message: "Votre compte est bloqué en raison de trop d'anomalies." });
-            }
-
-            // Vérifier après exécution du script si l'utilisateur est bloqué
-            const refreshedUser = await User.findOne({ email });
-            if (refreshedUser.blocked) {
-                console.log(`User ${email} is now blocked. No token will be generated.`);
-                return res.status(403).json({ message:` Votre compte est bloqué jusqu'à ${refreshedUser.blocked_until}.` });
-            }
-
-            // Si l'authentification échoue, incrémenter le compteur d'anomalies
-            if (!isMatch) {
-                await User.updateOne({ email }, { $inc: { anomaly_count: 1 } });
-
-                // Vérifier si l'utilisateur doit être bloqué
-                const updatedUser = await User.findOne({ email });
-                if (updatedUser.anomaly_count >= 3) {
-                    const blockedUntil = new Date(Date.now() + 60000); // Bloqué pour 1 minute
-                    await User.updateOne(
-                        { email },
-                        { $set: { blocked: true, blocked_until: blockedUntil } }
-                    );
-                    console.log(`User ${email} blocked until ${blockedUntil}.`);
-                    return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${blockedUntil}. `});
-                }
-
-                return res.status(400).json({ message: "Invalid credentials" });
-            }
-
-            // ✅ Générer un token JWT SEULEMENT si l'utilisateur n'est pas bloqué
-            const authToken = jwt.sign(
-                { id: user._id, role: user.role },
-                process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_EXPIRES_IN }
-            );
-
-            console.log("Token Generated:", authToken);
-            return res.json({ message: "Login successful", token: authToken });
-        });
-
-    } catch (error) {
-        console.error("Error during login:", error);
-        return res.status(500).json({ message: "Server error" });
-    }
-};*/
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -309,7 +210,7 @@ exports.login = async (req, res) => {
         console.log("Login Request:", { email });
 
         // Vérifier si l'utilisateur existe
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email }).populate('role');  // Récupère tout le rôle
         if (!user) {
             console.log("User not found for email:", email);
             await LoginAttempt.create({ email, ip, success: false });
@@ -332,6 +233,9 @@ exports.login = async (req, res) => {
             console.log(`User ${email} débloqué.`);
         }
 
+        if (!user.role || !user.role.name) {
+            return res.status(500).json({ message: "Rôle non trouvé" });
+        }
         // Vérifier le mot de passe
         const isMatch = await argon2.verify(user.password, password);
         await LoginAttempt.create({ email, ip, success: isMatch });
@@ -388,13 +292,13 @@ exports.login = async (req, res) => {
 
             // Générer un token JWT
             const authToken = jwt.sign(
-                { id: user._id, role: user.role },
+                { id: user._id, role: user.role.name },
                 process.env.JWT_SECRET,
                 { expiresIn: process.env.JWT_EXPIRES_IN }
             );
 
             console.log("Token Generated:", authToken);
-            return res.json({ message: "Login successful", token: authToken });
+            return res.json({ message: "Login successful", token: authToken,user });
         });
 
     } catch (error) {
@@ -446,7 +350,7 @@ exports.googleAuth = async (req, res) => {
 
         oauth2Client.setCredentials(googleRes.tokens);
         const userRes = await axios.get(
-            `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${googleRes.tokens.access_token}`
+           ` https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${googleRes.tokens.access_token}`
         );
         console.log("Google User Info:", userRes.data);
 
@@ -454,13 +358,19 @@ exports.googleAuth = async (req, res) => {
         let user = await User.findOne({ email });
 
         if (!user) {
+            const guestRole = await Role.findOne({ name: 'Guest' });
+
+            if (!guestRole) {
+                console.error("Error: 'Guest' role not found");
+                return res.status(500).json({ message: "Internal Server Error: Guest role not found" });
+            }
             user = await User.create({
                 firstname: name.split(' ')[0],
                 lastname: name.split(' ')[1] || '',
                 email,
                 phone :'00000000',
                 googleId,
-                role: 'Guest', // You can assign roles based on your requirements
+                role: guestRole._id, // You can assign roles based on your requirements
             });
             console.log("New user created:", user);
         } else {
@@ -480,6 +390,8 @@ exports.googleAuth = async (req, res) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
 const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -487,6 +399,7 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASSWORD
     }
 });
+
 //authface
 exports.registerFaceLabel = async (req, res) => {
     try {
@@ -591,24 +504,10 @@ exports.resetPassword = async (req, res) => {
     }
 };
 
-// Get user profile
-exports.getProfile = async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id).select("-password");
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-        res.status(200).json(user);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
-
-
 exports.getUsers = async (req, res) => {
     try {
       // Récupérer tous les utilisateurs dans la base de données
-      const users = await User.find();
+      const users = await User.find().populate('role','name');
   
       // Si aucun utilisateur n'est trouvé
       if (!users || users.length === 0) {
@@ -623,8 +522,9 @@ exports.getUsers = async (req, res) => {
     }
   };
   
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
+
   // Mettre à jour un utilisateur
   exports.updateUser = async (req, res) => {
     try {
@@ -681,8 +581,7 @@ const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
         res.status(500).json({ message: "Server error" });
     }
   };
-  
-  
+   
   // Supprimer un utilisateur
   exports.deleteUser = async (req, res) => {
       try {

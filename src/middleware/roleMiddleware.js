@@ -41,4 +41,3 @@ const checkRole = (roles) => {
 
 module.exports = { checkRole };
 
-
