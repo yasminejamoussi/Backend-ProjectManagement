@@ -99,24 +99,17 @@ pipeline {
                         def imageName = "projectmanagement"
                         def imageTag = "${env.BUILD_NUMBER}"
                         def fullImageName = "${imageName}:${imageTag}"
-
+                        
                         sh "docker build -t ${fullImageName} ."
-                        sh "docker save -o backend-image.tar ${fullImageName}"
-                        sh """
-                        mvn deploy:deploy-file \
-                            -Dfile=backend-image.tar \
-                            -DgroupId=com.example \
-                            -DartifactId=backend-image \
-                            -Dversion=${imageTag} \
-                            -Dpackaging=tar \
-                            -DrepositoryId=nexus-releases \
-                            -Durl=${NEXUS_URL}/repository/maven-releases/ \
-                            -s /usr/share/maven/conf/settings.xml
-                        """
+                        docker.withRegistry("http://${NEXUS_URL}", NEXUS_CREDENTIALS) {
+                            sh "docker tag ${fullImageName} ${NEXUS_URL}/projectmanagement/${imageName}:${imageTag}"
+                            sh "docker push ${NEXUS_URL}/projectmanagement/${imageName}:${imageTag}"
+                        }
                     }
                 }
             }
         }
+
 
         stage('Run Application') {
             steps {
