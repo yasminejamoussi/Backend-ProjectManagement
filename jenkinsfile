@@ -117,7 +117,7 @@ pipeline {
                     -Dpackaging=tar \
                     -DrepositoryId=nexus-releases \
                     -Durl=${NEXUS_URL}/repository/maven-releases/ \
-                    -s /var/jenkins_home/.m2/settings.xml
+                    -s /usr/share/maven/conf/settings.xml
                 """
             }
         }
