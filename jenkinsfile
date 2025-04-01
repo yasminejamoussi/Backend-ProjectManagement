@@ -21,7 +21,7 @@ pipeline {
                 }
             }
         }
-
+    }
         stage('Install Dependencies') {
             //parallel {
                 stage('Backend') {
