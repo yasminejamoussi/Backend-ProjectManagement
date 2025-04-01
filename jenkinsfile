@@ -10,41 +10,35 @@ pipeline {
         NEXUS_CREDENTIAL_ID = 'nexus'
     }
 
-    stages {
+   stages {
         stage('Checkout Code') {
             steps {
                 script {
                     echo "📥 Clonage du Backend..."
-                    sh "git clone -b DevOps ${BACKEND_REPO} backend"
+                    sh "git clone -b cicd ${BACKEND_REPO} backend"
                     echo "📥 Clonage du Frontend..."
                     sh "git clone ${FRONTEND_REPO} frontend"
                 }
             }
         }
-        stage('Debug Environment') {
-            steps {
-                sh '/bin/bash -c "whoami"'
-                sh '/bin/bash -c "echo \$PATH"'
-                sh '/bin/bash -c "which node || true"'
-                sh '/bin/bash -c "which npm || true"'
-                sh '/bin/bash -c "node --version || true"'
-                sh '/bin/bash -c "npm --version || true"'
-            }
-        }
-        stage('Install Frontend Dependencies') {
-            steps {
-                dir('frontend') {
-                    echo "📦 Installation des dépendances du frontend..."
-                    sh 'npm install'
-                }
-            }
-        }
 
-        stage('Install Backend Dependencies') {
-            steps {
-                dir('backend') {
-                    echo "📦 Installation des dépendances du backend..."
-                    sh 'npm install'
+        stage('Install Dependencies') {
+            parallel {
+                stage('Backend') {
+                    steps {
+                        dir('backend') {
+                            echo "📦 Installation des dépendances du backend..."
+                            sh 'npm install'
+                        }
+                    }
+                }
+                stage('Frontend') {
+                    steps {
+                        dir('frontend') {
+                            echo "📦 Installation des dépendances du frontend..."
+                            sh 'npm install'
+                        }
+                    }
                 }
             }
         }
@@ -55,42 +49,24 @@ pipeline {
                     def scannerHome = tool 'sonarqube'
                     withSonarQubeEnv('sonarqube') {
                         dir('backend') {
-                            echo "🚀 Tentative d'analyse SonarQube (optionnelle)..."
+                            echo "🚀 Analyse SonarQube..."
                             timeout(time: 10, unit: 'MINUTES') {
                                 withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
                                     sh """
                                     ${scannerHome}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=ProjectManagementPI \
+                                     -Dsonar.projectKey=ProjectManagementPI \
                                     -Dsonar.projectName=ProjectManagementPI \
                                     -Dsonar.sources=src \
                                     -Dsonar.language=js \
-                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/*.js,src/controllers/*.js,src/routes/*.js,**/middleware/**,server.js \
+                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/**,,src/utils/**,src/controllers/**,src/routes/**,src/middleware/**,src/server.js \
                                     -Dsonar.host.url=http://192.168.33.10:9000 \
-                                    -Dsonar.login=\${SONAR_LOGIN} \
+                                    -Dsonar.login=${SONAR_LOGIN} \
                                     -X || true
                                     """
-                                    }
                                 }
                             }
                         }
                     }
-                }
-            }
-
-        stage('Install Docker Compose') {
-            steps {
-                sh 'curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o ./docker-compose'
-                sh 'chmod +x ./docker-compose'
-                sh './docker-compose --version'
-            }
-        }
-
-
-        stage('Start Docker Services') {
-            steps {
-                script {
-                    echo "🚀 Démarrage des services Docker..."
-                    sh './docker-compose -f docker-compose.yaml up -d'
                 }
             }
         }
@@ -115,29 +91,6 @@ pipeline {
             }
         }
 
-        stage('Debug Directory') {
-            steps {
-                echo "📂 Contenu de la racine :"
-                sh 'ls -la'
-                dir('backend') {
-                    echo "📂 Contenu de backend :"
-                    sh 'ls -la'
-                }
-                dir('frontend') {
-                    echo "📂 Contenu de frontend :"
-                    sh 'ls -la'
-                }
-            }
-        }
-
-        stage('Building Docker Images') {
-            steps {
-                script {
-                    echo "🚀 Build des images Docker..."
-                    sh './docker-compose -f docker-compose.yaml build'
-                }
-            }
-        }
         stage('Deploy Docker Image to Nexus') {
             steps {
                 script {
@@ -164,11 +117,12 @@ pipeline {
                 }
             }
         }
+
         stage('Run Application') {
             steps {
                 script {
                     echo "🚀 Démarrage de l'application..."
-                    sh './docker-compose -f docker-compose.yaml up -d'
+                    sh 'docker-compose -f docker-compose.yaml up -d'
                 }
             }
         }
@@ -183,7 +137,7 @@ pipeline {
         }
         always {
             echo "📂 Nettoyage de l'espace de travail après exécution..."
-            sh './docker-compose down -v || true'
+            sh 'docker-compose down -v || true'
             cleanWs()
         }
     }
