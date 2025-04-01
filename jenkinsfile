@@ -144,7 +144,7 @@ pipeline {
         }
         always {
             echo "📂 Nettoyage de l'espace de travail après exécution..."
-            sh 'docker-compose down -v || true'
+           // sh 'docker-compose down -v || true'
             cleanWs()
         }
     }
