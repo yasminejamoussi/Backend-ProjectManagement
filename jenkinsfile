@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
-        FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
+       // FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
         SONAR_TOKEN = credentials('sonarqube-token')
         NEXUS_URL = 'http://192.168.33.10:8081'
         NEXUS_REPOSITORY = 'dockr-repo'
@@ -16,14 +16,14 @@ pipeline {
                 script {
                     echo "📥 Clonage du Backend..."
                     sh "git clone -b cicd ${BACKEND_REPO} backend"
-                    echo "📥 Clonage du Frontend..."
-                    sh "git clone ${FRONTEND_REPO} frontend"
+                  /*  echo "📥 Clonage du Frontend..."
+                    sh "git clone ${FRONTEND_REPO} frontend"*/
                 }
             }
         }
 
         stage('Install Dependencies') {
-            parallel {
+            //parallel {
                 stage('Backend') {
                     steps {
                         dir('backend') {
@@ -32,15 +32,15 @@ pipeline {
                         }
                     }
                 }
-                stage('Frontend') {
+              /*  stage('Frontend') {
                     steps {
                         dir('frontend') {
                             echo "📦 Installation des dépendances du frontend..."
                             sh 'npm install'
                         }
                     }
-                }
-            }
+                }*/
+           // }
         }
 
         stage('SonarQube Analysis') {
@@ -81,14 +81,14 @@ pipeline {
             }
         }
 
-        stage('Build Frontend') {
+      /*  stage('Build Frontend') {
             steps {
                 dir('frontend') {
                     echo "🛠️ Construction du frontend..."
                     sh 'npm run build'
                 }
             }
-        }
+        }*/
 
       stage('Deploy Docker Image to Nexus') {
     steps {
