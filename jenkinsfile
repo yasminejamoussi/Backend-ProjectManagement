@@ -17,7 +17,7 @@ pipeline {
                     echo "📥 Clonage du Backend..."
                     sh "git clone -b cicd ${BACKEND_REPO} backend"
                     echo "📥 Clonage du Frontend..."
-                    sh "git clone -b cicd ${FRONTEND_REPO} frontend"
+                    sh "git clone ${FRONTEND_REPO} frontend"
                 }
             }
         }
