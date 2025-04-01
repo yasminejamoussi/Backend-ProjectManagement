@@ -55,18 +55,17 @@ pipeline {
                     def scannerHome = tool 'sonarqube'
                     withSonarQubeEnv('sonarqube') {
                         dir('backend') {
-                            echo "🚀 Tentative d'analyse SonarQube (optionnelle)..."
+                            echo "🚀 Analyse SonarQube..."
                             timeout(time: 10, unit: 'MINUTES') {
                                 withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
                                     sh """
                                     ${scannerHome}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=ProjectManagementPI \
-                                    -Dsonar.projectName=ProjectManagementPI \
+                                    -Dsonar.projectKey=projectpi \
                                     -Dsonar.sources=src \
                                     -Dsonar.language=js \
-                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/*.js,src/controllers/*.js,src/routes/*.js \
+                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/**,,src/utils/**,src/controllers/**,src/routes/**,src/middleware/**,src/server.js \
                                     -Dsonar.host.url=http://192.168.33.10:9000 \
-                                    -Dsonar.login=\${SONAR_LOGIN} \
+                                    -Dsonar.login=${SONAR_LOGIN} \
                                     -X || true
                                     """
                                 }
@@ -142,6 +141,33 @@ pipeline {
                 script {
                     echo "🚀 Build des images Docker..."
                     sh './docker-compose -f docker-compose.yaml build'
+                }
+            }
+        }
+        
+        stage('Deploy Docker Image to Nexus') {
+            steps {
+                script {
+                    echo "📤 Déploiement de l'image backend vers Nexus..."
+                    dir('backend') {
+                        def imageName = "projectmanagement"
+                        def imageTag = "${env.BUILD_NUMBER}"
+                        def fullImageName = "${imageName}:${imageTag}"
+
+                        sh "docker build -t ${fullImageName} ."
+                        sh "docker save -o backend-image.tar ${fullImageName}"
+                        sh """
+                        mvn deploy:deploy-file \
+                            -Dfile=backend-image.tar \
+                            -DgroupId=com.example \
+                            -DartifactId=backend-image \
+                            -Dversion=${imageTag} \
+                            -Dpackaging=tar \
+                            -DrepositoryId=nexus-releases \
+                            -Durl=${NEXUS_URL}/repository/maven-releases/ \
+                            -s /var/jenkins_home/.m2/settings.xml
+                        """
+                    }
                 }
             }
         }
