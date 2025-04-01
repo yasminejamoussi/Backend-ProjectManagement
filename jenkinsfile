@@ -81,18 +81,14 @@ pipeline {
             }
         }
 
-       stage('Build Frontend') {
-    steps {
-        dir('frontend') {
-            cache(path: 'node_modules', key: 'npm-cache') {
-                echo "🛠️ Construction du frontend..."
-                sh 'npm install'
-                sh 'npm run build'
+        stage('Build Frontend') {
+            steps {
+                dir('frontend') {
+                    echo "🛠️ Construction du frontend..."
+                    sh 'npm run build'
+                }
             }
         }
-    }
-}
-
 
         stage('Deploy Docker Image to Nexus') {
             steps {
