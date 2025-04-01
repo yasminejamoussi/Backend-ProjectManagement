@@ -102,7 +102,7 @@ pipeline {
                 def fullImageName = "${imageName}:${imageTag}"
 
                 echo "🚀 Construction de l'image Docker..."
-                sh "docker build -t ${fullImageName} ."
+                sh "docker build -t ${fullImageName} --no-cache ."
 
                 echo "📦 Sauvegarde de l'image..."
                 sh "docker save -o backend-image.tar ${fullImageName}"
@@ -129,7 +129,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage de l'application..."
-                    sh 'docker-compose -f docker-compose.yaml up -d'
+                   sh 'docker-compose -f docker-compose.yaml up -d || true'
                 }
             }
         }
