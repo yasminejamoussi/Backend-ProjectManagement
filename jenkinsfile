@@ -16,33 +16,31 @@ pipeline {
                 script {
                     echo "📥 Clonage du Backend..."
                     sh "git clone -b cicd ${BACKEND_REPO} backend"
-                    /*
-                    echo "📥 Clonage du Frontend..."
-                    sh "git clone ${FRONTEND_REPO} frontend"
-                    */
+                    /* echo "📥 Clonage du Frontend..."
+                    sh "git clone ${FRONTEND_REPO} frontend" */
                 }
             }
         }
 
         stage('Install Dependencies') {
-            stage('Backend') {
-                steps {
-                    dir('backend') {
-                        echo "📦 Installation des dépendances du backend..."
-                        sh 'npm install'
+            stages {
+                stage('Backend') {
+                    steps {
+                        dir('backend') {
+                            echo "📦 Installation des dépendances du backend..."
+                            sh 'npm install'
+                        }
                     }
                 }
-            }
-            /*
-            stage('Frontend') {
-                steps {
-                    dir('frontend') {
-                        echo "📦 Installation des dépendances du frontend..."
-                        sh 'npm install'
+                /* stage('Frontend') {
+                    steps {
+                        dir('frontend') {
+                            echo "📦 Installation des dépendances du frontend..."
+                            sh 'npm install'
+                        }
                     }
-                }
+                } */
             }
-            */
         }
 
         stage('SonarQube Analysis') {
@@ -83,16 +81,14 @@ pipeline {
             }
         }
 
-        /*
-        stage('Build Frontend') {
+        /* stage('Build Frontend') {
             steps {
                 dir('frontend') {
                     echo "🛠️ Construction du frontend..."
                     sh 'npm run build'
                 }
             }
-        }
-        */
+        } */
 
         stage('Deploy Docker Image to Nexus') {
             steps {
