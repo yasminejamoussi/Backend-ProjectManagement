@@ -95,7 +95,7 @@ pipeline {
                 script {
                     echo "📤 Déploiement de l'image backend vers Nexus..."
                     dir('backend') {
-                        def imageName = "ProjectManagementApp"
+                        def imageName = "projectmanagement"
                         def imageTag = "${env.BUILD_NUMBER}"
                         def fullImageName = "${imageName}:${imageTag}"
 
