@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
-        // FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
+        FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
         SONAR_TOKEN = credentials('sonarqube-token')
         NEXUS_URL = 'http://192.168.33.10:8081'
         NEXUS_REPOSITORY = 'dockr-repo'
@@ -16,14 +16,14 @@ pipeline {
                 script {
                     echo "📥 Clonage du Backend..."
                     sh "git clone -b cicd ${BACKEND_REPO} backend"
-                    /* echo "📥 Clonage du Frontend..."
-                    sh "git clone ${FRONTEND_REPO} frontend" */
+                    echo "📥 Clonage du Frontend..."
+                    sh "git clone ${FRONTEND_REPO} frontend"
                 }
             }
         }
 
         stage('Install Dependencies') {
-            stages {
+            parallel {
                 stage('Backend') {
                     steps {
                         dir('backend') {
@@ -32,14 +32,14 @@ pipeline {
                         }
                     }
                 }
-                /* stage('Frontend') {
+                stage('Frontend') {
                     steps {
                         dir('frontend') {
                             echo "📦 Installation des dépendances du frontend..."
                             sh 'npm install'
                         }
                     }
-                } */
+                }
             }
         }
 
@@ -57,7 +57,7 @@ pipeline {
                                     -Dsonar.projectKey=projectpi \
                                     -Dsonar.sources=src \
                                     -Dsonar.language=js \
-                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/**,src/utils/**,src/controllers/**,src/routes/**,src/middleware/**,src/server.js \
+                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/**,,src/utils/**,src/controllers/**,src/routes/**,src/middleware/**,src/server.js \
                                     -Dsonar.host.url=http://192.168.33.10:9000 \
                                     -Dsonar.login=${SONAR_LOGIN} \
                                     -X || true
@@ -81,54 +81,56 @@ pipeline {
             }
         }
 
-        /* stage('Build Frontend') {
+        stage('Build Frontend') {
             steps {
                 dir('frontend') {
                     echo "🛠️ Construction du frontend..."
                     sh 'npm run build'
                 }
             }
-        } */
+        }
 
-        stage('Deploy Docker Image to Nexus') {
-            steps {
-                script {
-                    echo "📤 Déploiement de l'image backend vers Nexus..."
-                    dir('backend') {
-                        sh 'ls -l Dockerfile || echo "⚠️  Dockerfile introuvable !"'
+      stage('Deploy Docker Image to Nexus') {
+    steps {
+        script {
+            echo "📤 Déploiement de l'image backend vers Nexus..."
+            dir('backend') {
+                sh 'ls -l Dockerfile || echo "⚠️  Dockerfile introuvable !"'
 
-                        def imageName = "projectmanagement"
-                        def imageTag = "${env.BUILD_NUMBER}"
-                        def fullImageName = "${imageName}:${imageTag}"
+                def imageName = "projectmanagement"
+                def imageTag = "${env.BUILD_NUMBER}"
+                def fullImageName = "${imageName}:${imageTag}"
 
-                        echo "🚀 Construction de l'image Docker..."
-                        sh "docker build -t ${fullImageName} --no-cache ."
+                echo "🚀 Construction de l'image Docker..."
+                sh "docker build -t ${fullImageName} --no-cache ."
 
-                        echo "📦 Sauvegarde de l'image..."
-                        sh "docker save -o backend-image.tar ${fullImageName}"
+                echo "📦 Sauvegarde de l'image..."
+                sh "docker save -o backend-image.tar ${fullImageName}"
 
-                        echo "📤 Upload de l'image sur Nexus..."
-                        sh """
-                        mvn deploy:deploy-file \
-                            -Dfile=backend-image.tar \
-                            -DgroupId=com.example \
-                            -DartifactId=backend-image \
-                            -Dversion=${imageTag} \
-                            -Dpackaging=tar \
-                            -DrepositoryId=nexus-releases \
-                            -Durl=${NEXUS_URL}/repository/maven-releases/ \
-                            -s /usr/share/maven/conf/settings.xml
-                        """
-                    }
-                }
+                echo "📤 Upload de l'image sur Nexus..."
+                sh """
+                mvn deploy:deploy-file \
+                    -Dfile=backend-image.tar \
+                    -DgroupId=com.example \
+                    -DartifactId=backend-image \
+                    -Dversion=${imageTag} \
+                    -Dpackaging=tar \
+                    -DrepositoryId=nexus-releases \
+                    -Durl=${NEXUS_URL}/repository/maven-releases/ \
+                    -s /usr/share/maven/conf/settings.xml
+                """
             }
         }
+    }
+}
+
 
         stage('Run Application') {
             steps {
                 script {
                     echo "🚀 Démarrage de l'application..."
-                    sh 'docker-compose -f docker-compose.yaml up -d api'
+                  sh 'docker-compose -f docker-compose.yaml up -d api'
+
                 }
             }
         }
@@ -143,7 +145,7 @@ pipeline {
         }
         always {
             echo "📂 Nettoyage de l'espace de travail après exécution..."
-            // sh 'docker-compose down -v || true'
+           // sh 'docker-compose down -v || true'
             cleanWs()
         }
     }
