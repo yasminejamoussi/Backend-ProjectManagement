@@ -90,32 +90,40 @@ pipeline {
             }
         }
 
-        stage('Deploy Docker Image to Nexus') {
-            steps {
-                script {
-                    echo "📤 Déploiement de l'image backend vers Nexus..."
-                    dir('backend') {
-                        def imageName = "projectmanagement"
-                        def imageTag = "${env.BUILD_NUMBER}"
-                        def fullImageName = "${imageName}:${imageTag}"
+      stage('Deploy Docker Image to Nexus') {
+    steps {
+        script {
+            echo "📤 Déploiement de l'image backend vers Nexus..."
+            dir('backend') {
+                sh 'ls -l Dockerfile || echo "⚠️  Dockerfile introuvable !"'
 
-                        sh "docker build -t ${fullImageName} ."
-                        sh "docker save -o backend-image.tar ${fullImageName}"
-                        sh """
-                        mvn deploy:deploy-file \
-                            -Dfile=backend-image.tar \
-                            -DgroupId=com.example \
-                            -DartifactId=backend-image \
-                            -Dversion=${imageTag} \
-                            -Dpackaging=tar \
-                            -DrepositoryId=nexus-releases \
-                            -Durl=${NEXUS_URL}/repository/maven-releases/ \
-                            -s /var/jenkins_home/.m2/settings.xml
-                        """
-                    }
-                }
+                def imageName = "projectmanagement"
+                def imageTag = "${env.BUILD_NUMBER}"
+                def fullImageName = "${imageName}:${imageTag}"
+
+                echo "🚀 Construction de l'image Docker..."
+                sh "docker build -t ${fullImageName} ."
+
+                echo "📦 Sauvegarde de l'image..."
+                sh "docker save -o backend-image.tar ${fullImageName}"
+
+                echo "📤 Upload de l'image sur Nexus..."
+                sh """
+                mvn deploy:deploy-file \
+                    -Dfile=backend-image.tar \
+                    -DgroupId=com.example \
+                    -DartifactId=backend-image \
+                    -Dversion=${imageTag} \
+                    -Dpackaging=tar \
+                    -DrepositoryId=nexus-releases \
+                    -Durl=${NEXUS_URL}/repository/maven-releases/ \
+                    -s /var/jenkins_home/.m2/settings.xml
+                """
             }
         }
+    }
+}
+
 
         stage('Run Application') {
             steps {
