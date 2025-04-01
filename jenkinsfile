@@ -101,9 +101,9 @@ pipeline {
                         def fullImageName = "${imageName}:${imageTag}"
                         
                         sh "docker build -t ${fullImageName} ."
-                        docker.withRegistry("http://${NEXUS_URL}", NEXUS_CREDENTIALS) {
-                            sh "docker tag ${fullImageName} ${NEXUS_URL}/projectmanagement/${imageName}:${imageTag}"
-                            sh "docker push ${NEXUS_URL}/projectmanagement/${imageName}:${imageTag}"
+                        docker.withRegistry("http://${NEXUS_URL}", NEXUS_CREDENTIAL_ID) {
+                            sh "docker tag ${fullImageName} ${NEXUS_URL}/${imageName}:${imageTag}"
+                            sh "docker push ${NEXUS_URL}/${imageName}:${imageTag}"
                         }
                     }
                 }
