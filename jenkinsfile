@@ -129,7 +129,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage de l'application..."
-                  sh 'docker-compose -f docker-compose.yaml up -d backend'
+                  sh 'docker-compose -f docker-compose.yaml up -d web'
 
                 }
             }
