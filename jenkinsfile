@@ -48,18 +48,15 @@ pipeline {
                 dir('backend') {
                     echo "🚀 Tentative d'analyse SonarQube (optionnelle)..."
                     timeout(time: 10, unit: 'MINUTES') {
-                        withEnv(["SONAR_LOGIN=${SONAR_TOKEN}", "SONAR_SCANNER_OPTS=-Xmx8192m"]) {
+                        withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
                             sh """
                             ${scannerHome}/bin/sonar-scanner \
                             -Dsonar.projectKey=projectpi \
                             -Dsonar.sources=src \
-                            -Dsonar.inclusions=**/*.js \
-                            -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/LoginAttempt.js,src/controllers/projectController.js,src/routes/profileRoutes.js \
+                            -Dsonar.language=js \
+                            -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/**,src/controllers/**,src/routes/** ,src/middleware/**,server.js \
                             -Dsonar.host.url=http://192.168.33.10:9000 \
                             -Dsonar.login=\${SONAR_LOGIN} \
-                            -Dsonar.language=js \
-                            -Dsonar.javascript.node.maxspace=8192 \
-                            -Dsonar.javascript.node.timeout=60000 \
                             -X || true
                             """
                         }
