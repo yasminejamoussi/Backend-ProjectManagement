@@ -55,26 +55,27 @@ pipeline {
                     def scannerHome = tool 'sonarqube'
                     withSonarQubeEnv('sonarqube') {
                         dir('backend') {
-                            echo "🚀 Analyse SonarQube..."
+                            echo "🚀 Tentative d'analyse SonarQube (optionnelle)..."
                             timeout(time: 10, unit: 'MINUTES') {
                                 withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
                                     sh """
                                     ${scannerHome}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=projectpi \
+                                    -Dsonar.projectKey=ProjectManagementPI \
+                                    -Dsonar.projectName=ProjectManagementPI \
                                     -Dsonar.sources=src \
                                     -Dsonar.language=js \
-                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/**,,src/utils/**,src/controllers/**,src/routes/**,src/middleware/**,src/server.js \
+                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/models/*.js,src/controllers/*.js,src/routes/*.js,**/middleware/**,server.js \
                                     -Dsonar.host.url=http://192.168.33.10:9000 \
-                                    -Dsonar.login=${SONAR_LOGIN} \
+                                    -Dsonar.login=\${SONAR_LOGIN} \
                                     -X || true
                                     """
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
         stage('Install Docker Compose') {
             steps {
@@ -84,13 +85,6 @@ pipeline {
             }
         }
 
-        stage('Clean Docker Environment') {
-            steps {
-                echo "🧹 Nettoyage de l'environnement Docker..."
-                sh './docker-compose down -v --rmi local || true'
-                sh 'docker system prune -f || true'
-            }
-        }
 
         stage('Start Docker Services') {
             steps {
@@ -144,7 +138,6 @@ pipeline {
                 }
             }
         }
-        
         stage('Deploy Docker Image to Nexus') {
             steps {
                 script {
@@ -171,7 +164,6 @@ pipeline {
                 }
             }
         }
-
         stage('Run Application') {
             steps {
                 script {
