@@ -142,6 +142,7 @@ exports.generate2FA = async (req, res) => {
       res.status(500).json({ message: "Erreur serveur" });
     }
   };
+
 // Register a new user
 exports.register = async (req, res) => {
     try {
@@ -177,12 +178,13 @@ exports.register = async (req, res) => {
         }
 
         // Vérifier si le rôle "Guest" existe, sinon le créer
-    let guestRole = await Role.findOne({ name: 'Admin' });
-    if (!guestRole) {
-      guestRole = new Role({ name: 'Admin' });
-      await guestRole.save();
-    }
+        let guestRole = await Role.findOne({ name: 'Guest' });
+        if (!guestRole) {
+            guestRole = new Role({ name: 'Guest' });
+            await guestRole.save();
+        }
 
+       
         // Create new user
         const user = new User({
             firstname,
@@ -190,122 +192,146 @@ exports.register = async (req, res) => {
             phone,
             email,
             password,
-            role: guestRole._id, 
-
+            role: guestRole._id // Assigner le rôle "Guest" par défaut
         });
         await user.save();
 
-        res.status(201).json({ message: "User registered successfully", user });
+        res.status(201).json({ message: "User registered successfully", user: { email: user.email, id: user._id } });
     } catch (error) {
         console.error("Register Error:", error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: "Server error" });
     }
 };
 
 exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const ip = req.ip;
+  try {
+    const { email, password } = req.body;
+    const ip = req.ip;
 
-        console.log("Login Request:", { email });
+    console.log("Login Request:", { email });
 
-        // Vérifier si l'utilisateur existe
-        const user = await User.findOne({ email }).populate('role');  // Récupère tout le rôle
-        if (!user) {
-            console.log("User not found for email:", email);
-            await LoginAttempt.create({ email, ip, success: false });
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
-
-        // Vérifier si l'utilisateur est bloqué
-        if (user.blocked && new Date() < user.blocked_until) {
-            console.log(`User ${email} is blocked until ${user.blocked_until}.`);
-            return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${user.blocked_until}.` });
-        }
-
-        // Débloquer si le temps de blocage est écoulé
-        if (user.blocked && new Date() >= user.blocked_until) {
-            await User.updateOne(
-                { email },
-                { $set: { blocked: false, blocked_until: null, anomaly_count: 0 } }
-            );
-            await LoginAttempt.deleteMany({ email, success: false });
-            console.log(`User ${email} débloqué.`);
-        }
-
-        if (!user.role || !user.role.name) {
-            return res.status(500).json({ message: "Rôle non trouvé" });
-        }
-        // Vérifier le mot de passe
-        const isMatch = await argon2.verify(user.password, password);
-        await LoginAttempt.create({ email, ip, success: isMatch });
-
-        // Vérifier si la 2FA est activée
-        if (user.isTwoFactorEnabled) {
-            return res.status(200).json({ message: "2FA required" });
-        }
-
-        // Exécuter le script Python pour détecter les anomalies
-        const pythonProcess = spawn("python3", ["src/scripts/detect_anomalies.py", email, ip, isMatch.toString()]);
-        let pythonOutput = "";
-
-        pythonProcess.stdout.on("data", (data) => {
-            pythonOutput += data.toString();
-            console.log(`Python Output: ${data.toString().trim()}`);
-        });
-
-        pythonProcess.stderr.on("data", (data) => {
-            console.error(`Python Error: ${data}`);
-        });
-
-        pythonProcess.on("close", async (code) => {
-            console.log(`Python process exited with code ${code}`);
-            const output = pythonOutput.trim();
-
-            if (output.includes("blocked")) {
-                console.log(`🚨 User ${email} is now blocked. No token will be generated.`);
-                return res.status(403).json({ message: "Votre compte est bloqué en raison de trop d'anomalies." });
-            }
-
-            const refreshedUser = await User.findOne({ email });
-            if (refreshedUser.blocked) {
-                console.log(`User ${email} is now blocked. No token will be generated.`);
-                return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${refreshedUser.blocked_until}.` });
-            }
-
-            if (!isMatch) {
-                await User.updateOne({ email }, { $inc: { anomaly_count: 1 } });
-
-                const updatedUser = await User.findOne({ email });
-                if (updatedUser.anomaly_count >= 3) {
-                    const blockedUntil = new Date(Date.now() + 60000);
-                    await User.updateOne(
-                        { email },
-                        { $set: { blocked: true, blocked_until: blockedUntil } }
-                    );
-                    console.log(`User ${email} blocked until ${blockedUntil}.`);
-                    return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${blockedUntil}.` });
-                }
-
-                return res.status(400).json({ message: "Invalid credentials" });
-            }
-
-            // Générer un token JWT
-            const authToken = jwt.sign(
-                { id: user._id, role: user.role.name },
-                process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_EXPIRES_IN }
-            );
-
-            console.log("Token Generated:", authToken);
-            return res.json({ message: "Login successful", token: authToken,user });
-        });
-
-    } catch (error) {
-        console.error("Error during login:", error);
-        return res.status(500).json({ message: "Server error" });
+    // Vérifier si l'utilisateur existe
+    console.log("Recherche de l'utilisateur...");
+    const user = await User.findOne({ email }).populate('role');
+    if (!user) {
+      console.log("User not found for email:", email);
+      await LoginAttempt.create({ email, ip, success: false });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
+    console.log("Utilisateur trouvé:", user.email);
+
+    // Vérifier si l'utilisateur est bloqué
+    if (user.blocked && new Date() < user.blocked_until) {
+      console.log(`User ${email} is blocked until ${user.blocked_until}.`);
+      return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${user.blocked_until}.` });
+    }
+
+    // Débloquer si le temps de blocage est écoulé
+    if (user.blocked && new Date() >= user.blocked_until) {
+      console.log(`Déblocage de l'utilisateur ${email}...`);
+      await User.updateOne(
+        { email },
+        { $set: { blocked: false, blocked_until: null, anomaly_count: 0 } }
+      );
+      await LoginAttempt.deleteMany({ email, success: false });
+      console.log(`User ${email} débloqué.`);
+    }
+
+    if (!user.role || !user.role.name) {
+      console.log("Rôle non trouvé pour l'utilisateur:", email);
+      return res.status(500).json({ message: "Rôle non trouvé" });
+    }
+
+    // Vérifier le mot de passe
+    console.log("Vérification du mot de passe...");
+    const isMatch = await argon2.verify(user.password, password);
+    console.log("Résultat de la vérification du mot de passe:", isMatch);
+    await LoginAttempt.create({ email, ip, success: isMatch });
+
+    // Appeler le script Python
+    console.log("Appel du script Python pour:", email);
+    const pythonProcess = spawn("/venv/bin/python3", ["src/scripts/detect_anomalies.py", email, ip, isMatch.toString()], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let pythonOutput = "";
+
+    pythonProcess.stdout.on("data", (data) => {
+      pythonOutput += data.toString();
+    });
+
+    pythonProcess.stderr.on("data", (data) => {
+      console.error(`Erreur Python: ${data.toString()}`);
+    });
+
+    pythonProcess.on("error", (err) => {
+      console.error('Erreur lors du lancement du script Python:', err);
+      return res.status(500).json({ message: "Error launching anomaly detection" });
+    });
+
+    pythonProcess.on("close", async (code) => {
+      console.log(`Python process exited with code ${code}`);
+      console.log(`Sortie brute Python: ${pythonOutput}`);
+
+      let output;
+      try {
+        output = JSON.parse(pythonOutput.trim());
+        console.log("Sortie Python parsée:", output);
+      } catch (err) {
+        console.error("Erreur lors de l'analyse de la sortie Python:", err);
+        console.error("Sortie brute reçue:", pythonOutput);
+        return res.status(500).json({ message: "Error while analyzing anomalies" });
+      }
+
+      if (output.error) {
+        console.error(`Erreur Python: ${output.error}`);
+        return res.status(500).json({ message: `Erreur dans le script Python: ${output.error}` });
+      }
+
+      if (output.status === "blocked") {
+        console.log(`🚨 User ${email} is now blocked.`);
+        return res.status(403).json({ message: "Your account is blocked due to too many anomalies." });
+      }
+
+      if (!isMatch) {
+        await User.updateOne({ email }, { $inc: { anomaly_count: 1 } });
+        const updatedUser = await User.findOne({ email });
+        if (updatedUser.anomaly_count >= 3) {
+          const blockedUntil = new Date(Date.now() + 60000);
+          await User.updateOne(
+            { email },
+            { $set: { blocked: true, blocked_until: blockedUntil } }
+          );
+          console.log(`User ${email} blocked until ${blockedUntil}.`);
+          return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${blockedUntil}.` });
+        }
+        return res.status(400).json({ message: "Invalid credentials" });
+      }
+
+      if (user.isTwoFactorEnabled) {
+        return res.status(200).json({ message: "2FA required" });
+      }
+
+      const refreshedUser = await User.findOne({ email });
+      if (refreshedUser.blocked) {
+        console.log(`User ${email} is now blocked. No token will be generated.`);
+        return res.status(403).json({ message: `Votre compte est bloqué jusqu'à ${refreshedUser.blocked_until}.` });
+      }
+
+      const authToken = jwt.sign(
+        { id: user._id, role: user.role.name },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN }
+      );
+
+      console.log("Token Generated:", authToken);
+      return res.json({ message: "Login successful", token: authToken, user });
+    });
+  } catch (error) {
+    console.error("Error during login:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
 };
+
 // Login with Face ID
 exports.loginWithFace = async (req, res) => {
     try {
@@ -504,7 +530,29 @@ exports.resetPassword = async (req, res) => {
     }
 };
 
-exports.getUsers = async (req, res) => {
+/*exports.getUsers = async (req, res) => {
+    try {
+      // Récupérer les rôles Team Leader et Team Member
+      const teamRoles = await Role.find({ name: { $in: ['Team Leader', 'Team Member'] } });
+      const teamRoleIds = teamRoles.map(role => role._id);
+  
+      // Récupérer les utilisateurs avec ces rôles
+      const users = await User.find({ role: { $in: teamRoleIds } }).populate('role', 'name');
+  
+      // Si aucun utilisateur n'est trouvé
+      if (!users || users.length === 0) {
+        return res.status(404).json({ message: "No users with role Team Leader or Team Member found" });
+      }
+  
+      // Renvoi des utilisateurs trouvés
+      res.status(200).json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  };*/
+  
+  exports.getUsers = async (req, res) => {
     try {
       // Récupérer tous les utilisateurs dans la base de données
       const users = await User.find().populate('role','name');
@@ -521,7 +569,6 @@ exports.getUsers = async (req, res) => {
       res.status(500).json({ message: "Server error" });
     }
   };
-  
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
 
@@ -543,8 +590,8 @@ const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
 
         // Hachage du mot de passe si fourni
         if (updates.password) {
-            updates.password = await argon2.hash(updates.password);
-        }
+          updates.password = updates.password.trim();
+      } 
 
         const updatedUser = await User.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
 
@@ -597,3 +644,5 @@ const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
           res.status(500).json({ message: "Delete error", error: error.message });
       }
   };
+
+ 

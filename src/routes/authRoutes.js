@@ -21,6 +21,8 @@ router.get("/users/:id", userController.getUserById);
 router.put("/users/:id", userController.updateUser); 
 router.delete("/users/:id",userController.deleteUser);
 
+
+
 //2FA
 router.post("/generate-2fa",userController.generate2FA);  
 router.post("/enable-2fa",userController.enable2FA);  

@@ -17,7 +17,7 @@ exports.predictDelay = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-// Create Project
+
 exports.createProject = async (req, res) => {
   try {
     let { name, description, objectives, status, startDate, endDate, deliverables, projectManager, teamMembers, tasks } = req.body;

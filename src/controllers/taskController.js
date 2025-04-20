@@ -3,7 +3,9 @@ const User = require('../models/User');
 const Project = require('../models/Project');
 const Role = require('../models/Role');
 const { spawn } = require("child_process");
+const { predictTaskDelay } = require('../utils/taskDelayPredictor');
 const path = require("path");
+const mongoose = require('mongoose');
 
 exports.prioritizeTask = async (req, res) => {
   const { title, description } = req.body;
@@ -200,6 +202,7 @@ exports.updateTask = async (req, res) => {
       );
     }
 
+    console.log(`Tâche ${updatedTask._id} mise à jour :`, updatedTask);
     res.json(updatedTask);
   } catch (error) {
     console.error("Erreur lors de la mise à jour de la tâche :", error);
@@ -226,95 +229,6 @@ exports.deleteTask = async (req, res) => {
   } catch (error) {
     console.error("Erreur lors de la suppression de la tâche :", error);
     res.status(500).json({ error: error.message });
-  }
-};
-
-const mongoose = require('mongoose'); // Importer mongoose
-
-exports.getProductivity = async (req, res) => {
-  const projectId = req.params.projectId; // Récupérer l'ID du projet depuis le chemin
-
-  try {
-    // Récupérer les tâches terminées pour le projet spécifique
-    const projectTasks = await Task.aggregate([
-      {
-        $match: { 
-          status: "Done", // Filtrer uniquement les tâches terminées
-          project: new mongoose.Types.ObjectId(projectId), // Filtrer par ID du projet
-          assignedTo: { $exists: true, $ne: [], $not: { $size: 0 } },
-          priority: { $exists: true, $in: ["High", "Urgent", "Medium", "Low"] }
-        }
-      },
-      {
-        $lookup: {
-          from: "projects", // Vérifiez le nom exact de la collection
-          localField: "project",
-          foreignField: "_id",
-          as: "projectInfo"
-        }
-      },
-      {
-        $unwind: "$projectInfo" // Décomposer le tableau de jointure pour les projets
-      },
-      {
-        $group: {
-          _id: "$projectInfo._id", // Grouper par ID du projet
-          projectName: { $first: "$projectInfo.name" }, // Nom du projet
-          totalTasksCompleted: { $sum: 1 }, // Nombre total de tâches terminées
-          tasks: { 
-            $push: {
-              priority: "$priority",
-              isLate: { 
-                $cond: [{ 
-                  $and: [
-                    { $gt: [{ $ifNull: ["$updatedAt", new Date(0)] }, { $ifNull: [{ $toDate: "$dueDate" }, new Date(0)] }] },
-                    { $ne: ["$dueDate", null] }
-                  ]
-                }, true, false] 
-              }
-            }
-          }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          project: "$projectName",
-          totalTasksCompleted: 1,
-          score: {
-            $reduce: {
-              input: "$tasks",
-              initialValue: 0,
-              in: {
-                $add: [
-                  "$$value",
-                  5, // +5 points par tâche terminée
-                  { $cond: [{ $in: [{ $toLower: "$$this.priority" }, ["high", "urgent"]] }, 10, 0] }, // +10 pour High/Urgent
-                  { $cond: ["$$this.isLate", -5, 0] } // -5 si en retard
-                ]
-              }
-            }
-          }
-        }
-      }
-    ]);
-
-    // Vérifier si le projet existe et a des tâches Done
-    if (projectTasks.length === 0) {
-      const project = await Project.findById(projectId).lean(); // Vérifiez le nom exact de la collection
-      if (!project) {
-        return res.status(404).json({ message: "Projet non trouvé" });
-      }
-      return res.status(200).json({
-        project: project.name,
-        message: "Aucun tâche est complétée"
-      });
-    }
-
-    res.json(projectTasks[0]); // Retourner un seul objet pour le projet spécifique
-  } catch (error) {
-    console.error("Erreur lors du calcul de la productivité par projet :", error);
-    res.status(500).json({ message: "Erreur lors du calcul de la productivité par projet" });
   }
 };
 
@@ -367,5 +281,274 @@ exports.predictTaskDuration = async (req, res) => {
   } catch (error) {
     console.error("Erreur serveur:", error);
     return res.status(500).json({ error: "Erreur interne du serveur." });
+  }
+};
+
+exports.predictTaskDelay = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`Requête predictTaskDelay pour id: ${id}`);
+    const task = await Task.findById(id)
+      .populate('project')
+      .populate('assignedTo', 'username'); // Ajouté pour peupler assignedTo
+    if (!task) {
+      console.log(`Tâche ${id} non trouvée`);
+      return res.status(404).json({ message: "Tâche non trouvée" });
+    }
+
+    const prediction = predictTaskDelay(task);
+    res.json(prediction);
+  } catch (error) {
+    console.error(`Erreur predictTaskDelay pour id ${req.params.id} :`, error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getUserTaskCounts = async (req, res) => {
+  try {
+    // Récupérer les rôles Team Leader et Team Member
+    const teamRoles = await Role.find({ name: { $in: ['Team Leader', 'Team Member'] } });
+    if (!teamRoles || teamRoles.length === 0) {
+      console.log('Aucun rôle Team Leader ou Team Member trouvé');
+      return res.status(404).json({ message: 'No Team Leader or Team Member roles found' });
+    }
+    const teamRoleIds = teamRoles.map(role => role._id);
+    console.log('teamRoleIds:', teamRoleIds);
+
+    // Récupérer les utilisateurs avec ces rôles
+    const users = await User.find({ role: { $in: teamRoleIds } })
+      .populate('role', 'name')
+      .select('username firstname lastname email role');
+    console.log('Utilisateurs trouvés:', users.length);
+
+    if (!users || users.length === 0) {
+      console.log('Aucun utilisateur avec rôle Team Leader ou Team Member trouvé');
+      return res.status(404).json({ message: 'No users with role Team Leader or Team Member found' });
+    }
+
+    // Compter les tâches non terminées et analyser les retards pour chaque utilisateur
+    const userTaskAnalysis = await Promise.all(
+      users.map(async (user) => {
+        try {
+          // Récupérer les tâches non terminées de l'utilisateur
+          const tasks = await Task.find({
+            assignedTo: user._id,
+            status: { $ne: 'Done' },
+          })
+            .populate('project', 'name')
+            .populate('assignedTo', 'username');
+          console.log(`Tâches pour utilisateur ${user.username}:`, tasks.length);
+
+          // Compter le nombre total de tâches non terminées
+          const taskCount = tasks.length;
+
+          // Prédire les retards pour chaque tâche et calculer des métriques
+          let totalDelayDays = 0;
+          let highPriorityTasks = 0;
+          let overdueTasks = 0;
+          let totalPriorityScore = 0;
+
+          const today = new Date();
+
+          for (const task of tasks) {
+            try {
+              // Vérifier les champs nécessaires pour predictTaskDelay
+              if (!task.startDate || !task.dueDate) {
+                console.warn(`Tâche ${task._id} ignorée: startDate ou dueDate manquant`);
+                continue;
+              }
+
+              // Prédire le retard de la tâche
+              const prediction = predictTaskDelay(task);
+              totalDelayDays += prediction.delayDays || 0;
+
+              // Vérifier si la tâche est en retard
+              if (task.dueDate && today > new Date(task.dueDate)) {
+                overdueTasks += 1;
+              }
+
+              // Compter les tâches de haute priorité
+              if (task.priority === 'High') {
+                highPriorityTasks += 1;
+              }
+
+              // Calculer un score de priorité pour la tâche
+              const priorityScore = task.priority === 'High' ? 1 : task.priority === 'Medium' ? 0.5 : 0;
+              totalPriorityScore += priorityScore;
+            } catch (taskError) {
+              console.error(`Erreur lors de l'analyse de la tâche ${task._id} pour l'utilisateur ${user.username}:`, taskError);
+              continue;
+            }
+          }
+
+          // Calculer un score d'efficacité
+          const averagePriority = taskCount > 0 ? totalPriorityScore / taskCount : 0;
+          const workloadScore = (taskCount * averagePriority) + (totalDelayDays * 0.5) + (overdueTasks * 2);
+
+          // Déterminer un statut de surcharge
+          let workloadStatus = 'Balanced';
+          if (workloadScore > 20) {
+            workloadStatus = 'Overloaded';
+          } else if (workloadScore <= 5) { // Changement : Inclure les utilisateurs avec 0 tâche
+            workloadStatus = 'Underutilized';
+          }
+
+          // Retourner les détails pour cet utilisateur
+          return {
+            userId: user._id,
+            username: user.username,
+            firstname: user.firstname || 'N/A',
+            lastname: user.lastname || 'N/A',
+            role: user.role ? user.role.name : 'Unknown',
+            taskCount,
+            totalDelayDays,
+            highPriorityTasks,
+            overdueTasks,
+            workloadScore: parseFloat(workloadScore.toFixed(2)),
+            workloadStatus,
+          };
+        } catch (userError) {
+          console.error(`Erreur lors du traitement de l'utilisateur ${user.username}:`, userError);
+          return {
+            userId: user._id,
+            username: user.username,
+            firstname: user.firstname || 'N/A',
+            lastname: user.lastname || 'N/A',
+            role: user.role ? user.role.name : 'Unknown',
+            taskCount: 0,
+            totalDelayDays: 0,
+            highPriorityTasks: 0,
+            overdueTasks: 0,
+            workloadScore: 0,
+            workloadStatus: 'Error',
+          };
+        }
+      })
+    );
+
+    // Trier les utilisateurs par workloadScore
+    userTaskAnalysis.sort((a, b) => b.workloadScore - a.workloadScore);
+
+    // Ajouter une recommandation globale
+    const overloadedUsers = userTaskAnalysis.filter(user => user.workloadStatus === 'Overloaded');
+    const underutilizedUsers = userTaskAnalysis.filter(user => user.workloadStatus === 'Underutilized');
+
+    const recommendation = overloadedUsers.length > 0 && underutilizedUsers.length > 0
+      ? `Consider reassigning tasks from overloaded users (${overloadedUsers.map(u => u.username).join(', ')}) to underutilized users (${underutilizedUsers.map(u => u.username).join(', ')}).`
+      : 'Workload distribution seems balanced.';
+
+    res.status(200).json({
+      userTaskAnalysis,
+      recommendation,
+    });
+  } catch (error) {
+    console.error('Erreur critique dans getUserTaskCounts:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+exports.getProductivity = async (req, res) => {
+  const projectId = req.params.projectId;
+
+  try {
+    // Vérifier si le projet existe
+    const project = await Project.findById(projectId).lean();
+    if (!project) {
+      return res.status(404).json({ message: "Projet non trouvé" });
+    }
+
+    // Récupérer les tâches terminées
+    const projectTasks = await Task.aggregate([
+      {
+        $match: {
+          status: "Done",
+          project: new mongoose.Types.ObjectId(projectId),
+          assignedTo: { $exists: true, $ne: [] }, // S'assurer que assignedTo n'est pas vide
+        },
+      },
+      {
+        $lookup: {
+          from: "projects",
+          localField: "project",
+          foreignField: "_id",
+          as: "projectInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$projectInfo",
+          preserveNullAndEmptyArrays: true, // Éviter les erreurs si pas de projet
+        },
+      },
+      {
+        $group: {
+          _id: "$projectInfo._id",
+          projectName: { $first: "$projectInfo.name" },
+          totalTasksCompleted: { $sum: 1 },
+          tasks: {
+            $push: {
+              priority: { $ifNull: ["$priority", "Medium"] }, // Valeur par défaut
+              isLate: {
+                $cond: [
+                  {
+                    $and: [
+                      { $ne: ["$dueDate", null] },
+                      {
+                        $gt: [
+                          { $ifNull: ["$updatedAt", new Date()] },
+                          { $ifNull: [{ $toDate: "$dueDate" }, new Date()] },
+                        ],
+                      },
+                    ],
+                  },
+                  true,
+                  false,
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          project: "$projectName",
+          totalTasksCompleted: 1,
+          score: {
+            $reduce: {
+              input: "$tasks",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  5, // +5 par tâche
+                  {
+                    $cond: [
+                      { $in: [{ $toLower: "$$this.priority" }, ["high", "urgent"]] },
+                      10,
+                      0,
+                    ],
+                  },
+                  { $cond: ["$$this.isLate", -5, 0] },
+                ],
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    if (projectTasks.length === 0) {
+      return res.status(200).json({
+        project: project.name,
+        totalTasksCompleted: 0,
+        score: 0,
+        message: "Aucune tâche terminée",
+      });
+    }
+
+    res.json(projectTasks[0]);
+  } catch (error) {
+    console.error("Erreur dans getProductivity:", error.message, error.stack);
+    res.status(500).json({ message: "Erreur serveur lors du calcul de la productivité" });
   }
 };

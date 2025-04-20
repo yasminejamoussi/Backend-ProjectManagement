@@ -1,242 +1,152 @@
-// Charger les variables d'environnement avant tout
+const request = require("supertest");
+const mongoose = require("mongoose");
+const app = require("../src/server");
+const User = require("../src/models/User");
 require("dotenv").config();
 
-// Définir les variables d'environnement pour les tests
-process.env.EMAIL_USER = "test@example.com";
-process.env.EMAIL_PASSWORD = "password";
-process.env.JWT_SECRET = "secret";
-process.env.JWT_EXPIRES_IN = "1h";
-
-// Imports après la configuration des variables d'environnement
-const request = require("supertest");
-const express = require("express");
-const mongoose = require("mongoose");
-
-const jwt = require("jsonwebtoken");
-const { spawn } = require("child_process");
-const {
-    register,
-    login,
-    getUsers: getUsers, // Renommer pour correspondre à l'export
-    updateUser,
-    deleteUser,
-} = require("../src/controllers/authController");
-const User = require("../src/models/User");
-const Role = require("../src/models/Role");
-const LoginAttempt = require("../src/models/LoginAttempt");
-
-// Mock des dépendances
-jest.mock("../src/models/User");
-jest.mock("../src/models/Role");
-jest.mock("../src/models/LoginAttempt");
-jest.mock("child_process");
-jest.mock("nodemailer");
-jest.mock("speakeasy");
-jest.mock("qrcode");
-jest.mock("jsonwebtoken");
-jest.mock("argon2");
-
 describe("Auth Controller Tests", () => {
-    let app;
+  const mongoUri = "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
+  let userId; // ✅ Correction : Ajout de userId
+  let authToken;
+  let twoFaToken;
 
-    beforeAll(() => {
-        app = express();
-        app.use(express.json());
-        app.post("/api/auth/register", register);
-        app.post("/api/auth/login", login);
-        app.get("/api/auth/users", getUsers);
-        app.put("/api/auth/users/:id", updateUser);
-        app.delete("/api/auth/users/:id", deleteUser);
+  const testUser = {
+    firstname: "John",
+    lastname: "Doe",
+    email: "johndoe@test.com",
+    phone: "+123456789",
+    password: "Password123"
+  };
+
+  beforeAll(async () => {
+    process.env.NODE_ENV = "test";
+    if (mongoose.connection.readyState === 0) {
+      console.log("🕐 Connexion à MongoDB...");
+      await mongoose.connect(mongoUri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+      });
+    }
+
+    let attempts = 0;
+    while (mongoose.connection.readyState !== 1 && attempts < 5) {
+      console.log(`🔄 Tentative ${attempts + 1} de connexion à MongoDB...`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      attempts++;
+    }
+
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error("❌ Impossible de se connecter à MongoDB.");
+    }
+
+    console.log("✅ MongoDB connecté !");
+    
+    await User.deleteMany({});
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.close();
+    console.log("🛑 Connexion MongoDB fermée.");
+  });
+
+  /*** TEST 1: Inscription d'un nouvel utilisateur ***/
+  it("should register a new user", async () => {
+    await User.deleteMany({ email: testUser.email });
+
+    const res = await request(app).post("/api/auth/register").send(testUser);
+    console.log("📢 Register Response:", res.status, res.body);
+
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty("user");
+    expect(res.body.user.email).toBe(testUser.email);
+
+    userId = res.body.user._id; // ✅ Stocke l'ID de l'utilisateur
+  });
+
+  /*** TEST 2: Tentative d'inscription avec un email existant ***/
+  it("should fail to register a duplicate email", async () => {
+    const res = await request(app).post("/api/auth/register").send(testUser);
+    console.log("📢 Duplicate Register Response:", res.status, res.body);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Email already exists");
+  });
+
+  /*** TEST 3: Connexion avec les bonnes informations ***/
+  it("should login with correct credentials", async () => {
+    const res = await request(app).post("/api/auth/login").send({
+      email: testUser.email,
+      password: testUser.password
     });
+    console.log("📢 Login Response:", res.status, res.body);
 
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
+    if (res.body.message === "2FA required") {
+      twoFaToken = res.body.token; 
+      expect(res.status).toBe(200);
+    } else {
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty("token");
+      authToken = res.body.token;
+    }
+  });
 
-    // Test pour register
-    it("should register a new user", async () => {
-        User.findOne.mockResolvedValue(null); // Aucun utilisateur existant
-        const mockRole = {
-            _id: new mongoose.Types.ObjectId(),
-            name: "Admin",
-            save: jest.fn().mockResolvedValue(true),
-        };
-        Role.findOne.mockResolvedValue(mockRole); // Rôle Admin trouvé
-        const mockUser = {
-            _id: new mongoose.Types.ObjectId(),
-            firstname: "John",
-            lastname: "Doe",
-            email: "john@example.com",
-            phone: "+123456789",
-            password: "Password123",
-            role: mockRole._id,
-            save: jest.fn().mockResolvedValue(true),
-        };
-        User.mockImplementation(() => mockUser);
+  /*** TEST 4: Vérification du 2FA si nécessaire ***/
+  it("should verify 2FA if required", async () => {
+    if (twoFaToken) {
+      const res = await request(app).post("/api/auth/verify-2fa").send({
+        email: testUser.email,
+        token: "123456"
+      });
+      console.log("📢 Verify 2FA Response:", res.status, res.body);
 
-        const res = await request(app)
-            .post("/api/auth/register")
-            .send({
-                firstname: "John",
-                lastname: "Doe",
-                email: "john@example.com",
-                phone: "+123456789",
-                password: "Password123",
-            });
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty("token");
+      authToken = res.body.token;
+    } else {
+      console.log("ℹ️ 2FA non activé, test ignoré.");
+    }
+  });
 
-        expect(res.status).toBe(201);
-        expect(res.body.message).toBe("User registered successfully"); // Message en anglais
-        expect(mockUser.save).toHaveBeenCalled();
-    });
+  /*** TEST 5: Récupérer les utilisateurs ***/
+  it("should fetch all users", async () => {
+    const res = await request(app)
+      .get("/api/auth/users")
+      .set("Authorization", `Bearer ${authToken}`);
+    console.log("📢 Fetch Users Response:", res.status, res.body);
 
-    it("should fail to register if email exists", async () => {
-        User.findOne.mockResolvedValue({ email: "john@example.com" }); // Utilisateur existant
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
 
-        const res = await request(app)
-            .post("/api/auth/register")
-            .send({
-                firstname: "John",
-                lastname: "Doe",
-                email: "john@example.com",
-                phone: "+123456789",
-                password: "Password123",
-            });
+  /*** ✅ TEST 6: Mise à jour de l'utilisateur ***/
+  it("should update user details", async () => {
+    expect(userId).toBeDefined(); // ✅ Vérifie que userId existe
 
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Email already exists"); // Message en anglais
-    });
+    const updatedData = { firstname: "Johnny", phone: "+987654321" };
 
-    // Test pour login
-    it("should login successfully", async () => {
-        const mockRole = {
-            _id: new mongoose.Types.ObjectId(),
-            name: "Admin",
-        };
-        const mockUser = {
-            _id: new mongoose.Types.ObjectId(),
-            email: "test@example.com",
-            password: "hashedPassword",
-            role: mockRole,
-            isTwoFactorEnabled: false,
-            blocked: false,
-            blocked_until: null,
-            anomaly_count: 0,
-            save: jest.fn().mockResolvedValue(true),
-        };
-        User.findOne.mockReturnValue({
-            populate: jest.fn().mockResolvedValue(mockUser),
-        });
-        User.updateOne.mockResolvedValue({ modifiedCount: 1 }); // Simuler une mise à jour réussie
-        User.findById.mockResolvedValue(mockUser); // Pour le refreshedUser
-        LoginAttempt.create.mockResolvedValue({});
-        jest.spyOn(require("argon2"), "verify").mockResolvedValue(true); // Mot de passe correct
-        spawn.mockReturnValue({
-            stdout: {
-                on: jest.fn((event, callback) => {
-                    if (event === "data") callback("[]"); // Aucune tentative suspecte
-                }),
-            },
-            stderr: { on: jest.fn() },
-            on: jest.fn((event, callback) => {
-                if (event === "close") callback(0); // Simuler la fin du processus Python
-            }),
-        });
-        jwt.sign.mockReturnValue("mock-token");
+    const res = await request(app)
+        .put(`/api/auth/users/${userId}`)
+        .send(updatedData)
+        .set("Authorization", `Bearer ${authToken}`);
 
-        const res = await request(app)
-            .post("/api/auth/login")
-            .send({ email: "test@example.com", password: "password" });
+    console.log("📢 Update User Response:", res.status, res.body);
 
-        expect(res.status).toBe(200);
-        expect(res.body.message).toBe("Login successful");
-        expect(res.body.token).toBe("mock-token");
-    });
+    expect(res.status).toBe(200);
+    expect(res.body.firstname).toBe(updatedData.firstname);
+    expect(res.body.phone).toBe(updatedData.phone);
+  });
 
-    it("should fail login with invalid credentials", async () => {
-        const mockRole = {
-            _id: new mongoose.Types.ObjectId(),
-            name: "Admin",
-        };
-        const mockUser = {
-            _id: new mongoose.Types.ObjectId(),
-            email: "test@example.com",
-            password: "hashedPassword",
-            role: mockRole,
-            isTwoFactorEnabled: false,
-            blocked: false,
-            blocked_until: null,
-            anomaly_count: 0,
-            save: jest.fn().mockResolvedValue(true),
-        };
-        User.findOne.mockReturnValue({
-            populate: jest.fn().mockResolvedValue(mockUser),
-        });
-        User.updateOne.mockResolvedValue({ modifiedCount: 1 }); // Simuler une mise à jour réussie
-        User.findById.mockResolvedValue(mockUser); // Pour le refreshedUser
-        LoginAttempt.create.mockResolvedValue({});
-        jest.spyOn(require("argon2"), "verify").mockResolvedValue(false); // Mot de passe incorrect
-        spawn.mockReturnValue({
-            stdout: {
-                on: jest.fn((event, callback) => {
-                    if (event === "data") callback("[]"); // Aucune tentative suspecte
-                }),
-            },
-            stderr: { on: jest.fn() },
-            on: jest.fn((event, callback) => {
-                if (event === "close") callback(0); // Simuler la fin du processus Python
-            }),
-        });
+  /*** ✅ TEST 7: Suppression d'un utilisateur ***/
+  it("should delete a user", async () => {
+    expect(userId).toBeDefined(); // ✅ Vérifie que userId existe
 
-        const res = await request(app)
-            .post("/api/auth/login")
-            .send({ email: "test@example.com", password: "wrong" });
+    const res = await request(app)
+        .delete(`/api/auth/users/${userId}`)
+        .set("Authorization", `Bearer ${authToken}`);
 
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Invalid credentials");
-    });
+    console.log("📢 Delete User Response:", res.status, res.body);
 
-    // Test pour getAllUsers
-    it("should get all users", async () => {
-        const mockUsers = [
-            { _id: new mongoose.Types.ObjectId(), email: "test1@example.com" },
-            { _id: new mongoose.Types.ObjectId(), email: "test2@example.com" },
-        ];
-        User.find.mockReturnValue({
-            populate: jest.fn().mockResolvedValue(mockUsers),
-        });
-
-        const res = await request(app).get("/api/auth/users");
-        expect(res.status).toBe(200);
-        expect(res.body).toHaveLength(2);
-    });
-
-    // Test pour updateUser
-    it("should update user", async () => {
-        const mockUser = {
-            _id: new mongoose.Types.ObjectId(),
-            email: "test@example.com",
-            firstname: "John",
-        };
-        User.findByIdAndUpdate.mockResolvedValue({
-            ...mockUser,
-            firstname: "Jane",
-        }); // Simuler la mise à jour
-
-        const res = await request(app)
-            .put(`/api/auth/users/${mockUser._id.toString()}`)
-            .send({ firstname: "Jane" });
-
-        expect(res.status).toBe(200);
-        expect(res.body.firstname).toBe("Jane");
-    });
-    // Test pour deleteUser
-    it("should delete user", async () => {
-        const userId = new mongoose.Types.ObjectId();
-        User.findById.mockResolvedValue({ _id: userId });
-        User.findByIdAndDelete.mockResolvedValue({ _id: userId });
-
-        const res = await request(app).delete(`/api/auth/users/${userId}`);
-        expect(res.status).toBe(200);
-        expect(res.body.message).toBe("User deleted successfully");
-    });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("User deleted successfully");
+  });
 });

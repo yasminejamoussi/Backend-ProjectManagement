@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const projectController = require("../controllers/projectController");
-const { predictDelay } = require('../utils/PrjctDelayPrediction');
+const ReportController = require('../controllers/ReportController');
+const authMiddleware = require('../middleware/authMiddleware');
 
 router.post("/", projectController.createProject);
 router.get("/", projectController.getAllProjects);
@@ -9,6 +10,7 @@ router.get("/:id", projectController.getProjectById);
 router.put("/:id", projectController.updateProject);
 router.get('/:id/predict-delay', projectController.predictDelay);
 router.delete("/:id", projectController.deleteProject);
+router.get('/reports/overview', authMiddleware, ReportController.generateOverviewReport);
 const { predictDuration } = require("../utils/PrjctDeadlinePrediction");
 //Project-deadline-prediction
 router.post("/predict", (req, res) => {
