@@ -21,6 +21,7 @@ const projectSchema = new mongoose.Schema({
     }
   },
   deliverables: { type: [String], default: [] },
+  requiredSkills: [{ type: String }],
   projectManager: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   teamMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   tasks: [{ type: mongoose.Schema.Types.ObjectId, ref: "Task" }]

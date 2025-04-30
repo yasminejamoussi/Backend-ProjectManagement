@@ -16,6 +16,9 @@ router.post("/forgot-password", sendResetCode);
 router.post("/verify-code", verifyResetCode);
 router.post("/reset-password", resetPassword);
 ///crud
+router.get("/users/best-weekly" , userController.getBestWeeklyUser);
+router.get("/users/best-weekly-per-project" , userController.getBestWeeklyUserPerProject);
+
 router.get("/users", userController.getUsers); 
 router.get("/users/:id", userController.getUserById); 
 router.put("/users/:id", userController.updateUser); 
@@ -27,6 +30,7 @@ router.delete("/users/:id",userController.deleteUser);
 router.post("/generate-2fa",userController.generate2FA);  
 router.post("/enable-2fa",userController.enable2FA);  
 router.post("/verify-2fa", userController.verify2FA);  
+router.post("/disable-2fa", userController.disable2FA);
 // Password Generator
 router.get("/generate-password", generateStrongPassword);
 

@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y python3 python3-pip python3-venv
 # Create a Python virtual environment and install required packages
 RUN python3 -m venv /venv && \
     /venv/bin/pip install --upgrade pip && \
-    /venv/bin/pip install pandas pymongo scikit-learn spacy nltk && \
+    /venv/bin/pip install pandas pymongo scikit-learn spacy nltk flask pdfplumber && \
     /venv/bin/python -m spacy download en_core_web_sm
 # Set the virtual environment path to use it
 ENV PATH="/venv/bin:$PATH"

@@ -16,4 +16,6 @@ router.post("/upload", authMiddleware, uploadProfileImage);
 // Route pour mettre à jour le profil de l'utilisateur connecté
 router.put("/update", authMiddleware, updateUserProfile);
 
+router.post("/upload-cv", authMiddleware, profileController.uploadCV);
+
 module.exports = router;

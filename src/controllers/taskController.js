@@ -6,6 +6,7 @@ const { spawn } = require("child_process");
 const { predictTaskDelay } = require('../utils/taskDelayPredictor');
 const path = require("path");
 const mongoose = require('mongoose');
+const calculateProjectStatus = require('../utils/projectStatus');
 
 exports.prioritizeTask = async (req, res) => {
   const { title, description } = req.body;
@@ -47,64 +48,7 @@ exports.prioritizeTask = async (req, res) => {
     }
   });
 };
-// Create Task
-exports.createTask = async (req, res) => {
-  try {
-    const { title, description, status, priority, project, assignedTo, dueDate, startDate, createdBy } = req.body;
 
-    if (!title || !project || !createdBy) {
-      return res.status(422).json({ error: "Le titre, le projet et le créateur sont obligatoires." });
-    }
-
-    const projectDoc = await Project.findById(project);
-    if (!projectDoc) {
-      return res.status(404).json({ error: "Projet non trouvé." });
-    }
-
-    const creator = await User.findById(createdBy).populate('role', 'name');
-    if (!creator) {
-      return res.status(404).json({ error: "Créateur non trouvé." });
-    }
-
-    let validatedAssignedTo = [];
-    if (assignedTo && Array.isArray(assignedTo) && assignedTo.length > 0) {
-      const teamRoles = await Role.find({ name: { $in: ["Team Leader", "Team Member"] } });
-      const teamRoleIds = teamRoles.map(role => role._id);
-      const members = await User.find({ 
-        _id: { $in: assignedTo }, 
-        role: { $in: teamRoleIds } 
-      });
-      if (members.length !== assignedTo.length) {
-        return res.status(422).json({ error: "Certains assignés n'existent pas ou n'ont pas le bon rôle." });
-      }
-      validatedAssignedTo = members.map(member => member._id);
-    }
-
-    const newTask = new Task({
-      title: title.trim(),
-      description: description ? description.trim() : undefined,
-      status: status || "To Do",
-      priority: priority || "Medium",
-      project,
-      assignedTo: validatedAssignedTo,
-      dueDate: dueDate ? new Date(dueDate) : undefined,
-      startDate: startDate ? new Date(startDate) : undefined,
-      createdBy
-    });
-
-    await newTask.save();
-
-    await Project.updateOne(
-      { _id: project },
-      { $push: { tasks: newTask._id } }
-    );
-
-    res.status(201).json(newTask);
-  } catch (error) {
-    console.error("Erreur lors de la création de la tâche :", error);
-    res.status(500).json({ error: error.message });
-  }
-};
 
 // Read All Tasks
 exports.getAllTasks = async (req, res) => {
@@ -142,92 +86,6 @@ exports.getTaskById = async (req, res) => {
     res.json(task);
   } catch (error) {
     console.error("Erreur lors de la récupération de la tâche :", error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Update Task
-exports.updateTask = async (req, res) => {
-  try {
-    const { title, description, status, priority, project, assignedTo, dueDate, startDate } = req.body;
-
-    if (project) {
-      const projectDoc = await Project.findById(project);
-      if (!projectDoc) {
-        return res.status(404).json({ error: "Projet non trouvé." });
-      }
-    }
-
-    let validatedAssignedTo = [];
-    if (assignedTo && Array.isArray(assignedTo)) {
-      const teamRoles = await Role.find({ name: { $in: ["Team Leader", "Team Member"] } });
-      const teamRoleIds = teamRoles.map(role => role._id);
-      const members = await User.find({ 
-        _id: { $in: assignedTo }, 
-        role: { $in: teamRoleIds } 
-      });
-      if (members.length !== assignedTo.length) {
-        return res.status(422).json({ error: "Certains assignés n'existent pas ou n'ont pas le bon rôle." });
-      }
-      validatedAssignedTo = members.map(member => member._id);
-    }
-
-    const updatedTask = await Task.findByIdAndUpdate(
-      req.params.id,
-      {
-        title: title ? title.trim() : undefined,
-        description: description ? description.trim() : undefined,
-        status,
-        priority,
-        project,
-        assignedTo: validatedAssignedTo.length > 0 ? validatedAssignedTo : undefined,
-        dueDate: dueDate ? new Date(dueDate) : undefined,
-        startDate: startDate ? new Date(startDate) : undefined
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedTask) {
-      return res.status(404).json({ message: "Tâche non trouvée" });
-    }
-
-    if (project && updatedTask.project.toString() !== project) {
-      await Project.updateOne(
-        { _id: updatedTask.project },
-        { $pull: { tasks: updatedTask._id } }
-      );
-      await Project.updateOne(
-        { _id: project },
-        { $push: { tasks: updatedTask._id } }
-      );
-    }
-
-    console.log(`Tâche ${updatedTask._id} mise à jour :`, updatedTask);
-    res.json(updatedTask);
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour de la tâche :", error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Delete Task
-exports.deleteTask = async (req, res) => {
-  try {
-    const task = await Task.findById(req.params.id);
-    if (!task) {
-      return res.status(404).json({ message: "Tâche non trouvée" });
-    }
-
-    await Task.deleteOne({ _id: req.params.id });
-
-    await Project.updateOne(
-      { _id: task.project },
-      { $pull: { tasks: task._id } }
-    );
-
-    res.json({ message: "Tâche supprimée avec succès" });
-  } catch (error) {
-    console.error("Erreur lors de la suppression de la tâche :", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -550,5 +408,180 @@ exports.getProductivity = async (req, res) => {
   } catch (error) {
     console.error("Erreur dans getProductivity:", error.message, error.stack);
     res.status(500).json({ message: "Erreur serveur lors du calcul de la productivité" });
+  }
+};
+// Create Task
+exports.createTask = async (req, res) => {
+  try {
+    // Étape 1 : Extraire les données de la requête
+    const { title, description, status, priority, project, assignedTo, dueDate, startDate, createdBy } = req.body;
+    console.log('Request body for createTask:', req.body);
+
+    // Étape 2 : Valider les champs obligatoires
+    if (!title || !project || !createdBy) {
+      return res.status(422).json({ error: "Le titre, le projet et le créateur sont obligatoires." });
+    }
+
+    // Étape 3 : Vérifier l’existence du projet
+    const projectDoc = await Project.findById(project);
+    if (!projectDoc) {
+      return res.status(404).json({ error: "Projet non trouvé." });
+    }
+
+    // Étape 4 : Vérifier l’existence du créateur
+    const creator = await User.findById(createdBy).populate('role', 'name');
+    if (!creator) {
+      return res.status(404).json({ error: "Créateur non trouvé." });
+    }
+
+    // Étape 5 : Valider les utilisateurs assignés
+    let validatedAssignedTo = [];
+    if (assignedTo && Array.isArray(assignedTo) && assignedTo.length > 0) {
+      const teamRoles = await Role.find({ name: { $in: ["Team Leader", "Team Member"] } });
+      const teamRoleIds = teamRoles.map(role => role._id);
+      const members = await User.find({ 
+        _id: { $in: assignedTo }, 
+        role: { $in: teamRoleIds } 
+      });
+      if (members.length !== assignedTo.length) {
+        return res.status(422).json({ error: "Certains assignés n'existent pas ou n'ont pas le bon rôle." });
+      }
+      validatedAssignedTo = members.map(member => member._id);
+    }
+    console.log('Validated assignedTo:', validatedAssignedTo);
+
+    // Étape 6 : Créer la nouvelle tâche
+    const newTask = new Task({
+      title: title.trim(),
+      description: description ? description.trim() : undefined,
+      status: status || "To Do",
+      priority: priority || "Medium",
+      project,
+      assignedTo: validatedAssignedTo,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+      startDate: startDate ? new Date(startDate) : undefined,
+      createdBy
+    });
+
+    // Étape 7 : Sauvegarder la tâche
+    await newTask.save();
+
+    // Étape 8 : Ajouter la tâche au projet
+    await Project.updateOne(
+      { _id: project },
+      { $push: { tasks: newTask._id } }
+    );
+
+    // Étape 9 : Recalculer le statut du projet
+    const projectTasks = await Task.find({ project: projectDoc._id });
+    const calculatedStatus = calculateProjectStatus(projectTasks);
+    await Project.updateOne(
+      { _id: projectDoc._id },
+      { status: calculatedStatus }
+    );
+
+    // Étape 10 : Remplir les données pour la réponse
+    const populatedTask = await Task.findById(newTask._id)
+      .populate("assignedTo", "firstname lastname")
+      .populate("project", "name")
+      .populate("createdBy", "firstname lastname email");
+    console.log('Task response being sent:', populatedTask);
+
+    // Étape 11 : Renvoyer la tâche créée
+    res.status(201).json(populatedTask);
+  } catch (error) {
+    console.error("Erreur lors de la création de la tâche :", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+// Update Task
+exports.updateTask = async (req, res) => {
+  try {
+    // Étape 1 : Extraire les données de la requête
+    const taskId = req.params.id;
+    const updates = req.body;
+
+    // Étape 2 : Récupérer la tâche avant mise à jour
+    const previousTask = await Task.findById(taskId);
+    if (!previousTask) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    // Vérifier que le projet associé existe
+    const project = await Project.findById(previousTask.project);
+    if (!project) {
+      return res.status(400).json({ error: "Associated project not found. This task may be orphaned." });
+    }
+
+    // Étape 3 : Stocker l’état précédent
+    res.locals.previousTask = previousTask.toObject();
+
+    // Étape 4 : Valider les dates
+    if (updates.startDate && updates.dueDate && new Date(updates.dueDate) < new Date(updates.startDate)) {
+      return res.status(422).json({ error: "La date d'échéance ne peut pas être antérieure à la date de début." });
+    }
+
+    // Étape 5 : Valider les utilisateurs assignés
+    if (updates.assignedTo && Array.isArray(updates.assignedTo)) {
+      const teamRoles = await Role.find({ name: { $in: ["Team Leader", "Team Member"] } });
+      const teamRoleIds = teamRoles.map(role => role._id);
+      const assignedMembers = await User.find({
+        _id: { $in: updates.assignedTo },
+        role: { $in: teamRoleIds },
+      });
+      if (assignedMembers.length !== updates.assignedTo.length) {
+        return res.status(422).json({ error: "Certains assignés n'existent pas ou n'ont pas le bon rôle." });
+      }
+      updates.assignedTo = assignedMembers.map(member => member._id);
+    }
+
+    // Étape 6 : Normaliser les champs de type string
+    if (updates.title) updates.title = String(updates.title).trim();
+    if (updates.status) updates.status = String(updates.status).trim();
+    if (updates.priority) updates.priority = String(updates.priority).trim();
+    if (updates.description) updates.description = String(updates.description).trim();
+
+    // Étape 7 : Ajouter updatedBy
+    req.body.updatedBy = req.user?.id || previousTask.createdBy;
+
+    // Étape 8 : Mettre à jour la tâche
+    const updatedTask = await Task.findByIdAndUpdate(taskId, updates, { new: true })
+      .populate("project", "name")
+      .populate("assignedTo", "firstname lastname email")
+      .populate("createdBy", "firstname lastname email");
+
+    // Étape 9 : Recalculer le statut du projet
+    const projectTasks = await Task.find({ project: updatedTask.project._id });
+    const calculatedStatus = calculateProjectStatus(projectTasks);
+    await Project.updateOne(
+      { _id: updatedTask.project._id },
+      { status: calculatedStatus }
+    );
+
+    // Étape 10 : Renvoyer la tâche mise à jour
+    res.status(200).json(updatedTask);
+  } catch (error) {
+    console.error("Error updating task:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+// Delete Task
+exports.deleteTask = async (req, res) => {
+  try {
+    const taskId = req.params.id;
+    const task = await Task.findById(taskId);
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    // Ajouter deletedBy
+    req.body.deletedBy = req.user?.id || task.createdBy; // Fallback sur createdBy si req.user.id n'est pas défini
+
+    await task.deleteOne();
+
+    res.status(200).json({ message: "Task deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting task:", error);
+    res.status(500).json({ error: error.message });
   }
 };

@@ -11,6 +11,8 @@ const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
 const Role = require('../models/Role'); // Assure-toi d'importer le modèle de rôle
 const path = require("path");
+const Project = require('../models/Project'); 
+const Task = require('../models/Task');
 
 // Fonction pour générer un mot de passe fort
 exports.generateStrongPassword = (req, res) => {
@@ -46,102 +48,142 @@ exports.generateStrongPassword = (req, res) => {
     });
 };
 
+// Générer le QR Code pour 2FA
 exports.generate2FA = async (req, res) => {
-    try {
-      const { email } = req.body;
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: "Utilisateur non trouvé." });
-      }
-  
-      // Générer un secret TOTP pour Google Authenticator
-      const secret = speakeasy.generateSecret({ length: 20 });
-      const otpAuthUrl = `otpauth://totp/MyApp:${email}?secret=${secret.base32}&issuer=MyApp`;
-  
-      // Stocker temporairement le secret
-      user.twoFactorTempSecret = secret.base32;
-      await user.save();
-  
-      // Générer le QR Code
-      QRCode.toDataURL(otpAuthUrl, (err, qrCodeDataUrl) => {
-        if (err) {
-          return res.status(500).json({ message: "Erreur lors de la génération du QR Code" });
-        }
-        res.json({ qrCode: qrCodeDataUrl, secret: secret.base32 });
-      });
-    } catch (error) {
-      console.error("Erreur lors de la génération du 2FA:", error);
-      res.status(500).json({ message: "Erreur serveur" });
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email requis." });
     }
-  }; 
-  // Activer le 2FA après validation du code
-  exports.enable2FA = async (req, res) => {
-    try {
-      const { email, token } = req.body;
-      const user = await User.findOne({ email });
-      if (!user || !user.twoFactorTempSecret) {
-        return res.status(400).json({ message: "Aucun 2FA temporaire trouvé." });
-      }
-  
-      // Vérifier le code entré
-      const isValid = speakeasy.totp.verify({
-        secret: user.twoFactorTempSecret,
-        encoding: "base32",
-        token,
-        window: 1,
-      });
-  
-      if (!isValid) {
-        return res.status(400).json({ message: "Code de vérification invalide." });
-      }
-  
-      // Activer définitivement le 2FA
-      user.twoFactorSecret = user.twoFactorTempSecret;
-      user.isTwoFactorEnabled = true;
-      user.twoFactorTempSecret = null;
-      await user.save();
-  
-      res.json({ message: "2FA activé avec succès !" });
-    } catch (error) {
-      console.error("Erreur lors de l'activation du 2FA:", error);
-      res.status(500).json({ message: "Erreur serveur" });
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur non trouvé." });
     }
-  };
-  
-  // Vérifier le 2FA à la connexion
-  exports.verify2FA = async (req, res) => {
-    try {
-      const { email, token } = req.body;
-      const user = await User.findOne({ email }).populate('role');
-      if (!user || !user.isTwoFactorEnabled) {
-        return res.status(400).json({ message: "2FA non activé pour cet utilisateur." });
+
+    // Générer un nouveau secret TOTP
+    const secret = speakeasy.generateSecret({ length: 20 });
+    const otpAuthUrl = `otpauth://totp/MyApp:${email}?secret=${secret.base32}&issuer=MyApp`;
+
+    // Stocker temporairement le secret et s'assurer que l'ancien est effacé
+    user.twoFactorTempSecret = secret.base32;
+    user.twoFactorSecret = null; // S'assurer que l'ancien secret permanent est effacé
+    await user.save();
+
+    // Générer le QR Code
+    QRCode.toDataURL(otpAuthUrl, (err, qrCodeDataUrl) => {
+      if (err) {
+        return res.status(500).json({ message: "Erreur lors de la génération du QR Code" });
       }
-  
-      // Vérifier le code TOTP
-      const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret,
-        encoding: "base32",
-        token,
-        window: 1,
-      });
-  
-      if (!verified) {
-        return res.status(400).json({ message: "Code de vérification invalide." });
-      }
-  
-      // Générer un token JWT après validation
-      const authToken = jwt.sign(
-        { id: user._id, role: user.role.name },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
-      );
-  
-      res.json({ message: "Authentification réussie", token: authToken });
-    } catch (error) {
-      console.error("Erreur lors de la vérification du 2FA:", error);
-      res.status(500).json({ message: "Erreur serveur" });
+      res.json({ qrCode: qrCodeDataUrl, secret: secret.base32 });
+    });
+  } catch (error) {
+    console.error("Erreur lors de la génération du 2FA:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+// Activer le 2FA après validation du code
+exports.enable2FA = async (req, res) => {
+  try {
+    const { email, token } = req.body;
+    if (!email || !token) {
+      return res.status(400).json({ message: "Email et code requis." });
     }
-  };
+
+    const user = await User.findOne({ email });
+    if (!user || !user.twoFactorTempSecret) {
+      return res.status(400).json({ message: "Aucun 2FA temporaire trouvé." });
+    }
+
+    // Vérifier le code entré
+    const isValid = speakeasy.totp.verify({
+      secret: user.twoFactorTempSecret,
+      encoding: "base32",
+      token,
+      window: 1,
+    });
+
+    if (!isValid) {
+      return res.status(400).json({ message: "Code de vérification invalide." });
+    }
+
+    // Activer définitivement le 2FA
+    user.twoFactorSecret = user.twoFactorTempSecret;
+    user.isTwoFactorEnabled = true;
+    user.twoFactorTempSecret = null;
+    await user.save();
+
+    res.json({ message: "2FA activé avec succès !" });
+  } catch (error) {
+    console.error("Erreur lors de l'activation du 2FA:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+// Désactiver le 2FA
+exports.disable2FA = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email requis." });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur non trouvé." });
+    }
+
+    // Réinitialiser tous les champs liés au 2FA
+    user.isTwoFactorEnabled = false;
+    user.twoFactorSecret = null;
+    user.twoFactorTempSecret = null;
+    await user.save();
+
+    res.json({ message: "2FA désactivé avec succès !" });
+  } catch (error) {
+    console.error("Erreur lors de la désactivation du 2FA:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+// Vérifier le 2FA à la connexion
+exports.verify2FA = async (req, res) => {
+  try {
+    const { email, token } = req.body;
+    if (!email || !token) {
+      return res.status(400).json({ message: "Email et code requis." });
+    }
+
+    const user = await User.findOne({ email }).populate("role");
+    if (!user || !user.isTwoFactorEnabled) {
+      return res.status(400).json({ message: "2FA non activé pour cet utilisateur." });
+    }
+
+    // Vérifier le code TOTP
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token,
+      window: 1,
+    });
+
+    if (!verified) {
+      return res.status(400).json({ message: "Code de vérification invalide." });
+    }
+
+    // Générer un token JWT après validation
+    const authToken = jwt.sign(
+      { id: user._id, role: user.role.name },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+
+    res.json({ message: "Authentification réussie", token: authToken });
+  } catch (error) {
+    console.error("Erreur lors de la vérification du 2FA:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -178,9 +220,9 @@ exports.register = async (req, res) => {
         }
 
         // Vérifier si le rôle "Guest" existe, sinon le créer
-        let guestRole = await Role.findOne({ name: 'Guest' });
+        let guestRole = await Role.findOne({ name: 'Admin' });
         if (!guestRole) {
-            guestRole = new Role({ name: 'Guest' });
+            guestRole = new Role({ name: 'Admin' });
             await guestRole.save();
         }
 
@@ -645,4 +687,370 @@ const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
       }
   };
 
+ const calculateProjectManagerBonus = async (userId, weekStart, weekEnd) => {
+   const projects = await Project.find({
+       projectManager: userId,
+       status: 'Completed',
+       startDate: { $lte: weekEnd },
+       endDate: { $gte: weekStart },
+   });
  
+   let bonus = 0;
+   projects.forEach((project) => {
+       bonus += 0.1;
+       console.log(`Projet terminé trouvé pour bonus: ${project.name}, bonus ajouté: 0.1`);
+   });
+ 
+   console.log(`Bonus total pour user ${userId}: ${bonus}`);
+   return bonus;
+ };
+ 
+ // Fonction pour calculer le score d'une tâche
+ const calculateTaskScore = (task) => {
+   const priorityWeights = { Urgent: 4, High: 3, Medium: 2, Low: 1, undefined: 1 };
+   const effortByPriority = { Urgent: 4, High: 3, Medium: 2, Low: 1, undefined: 1 };
+   let score = 0;
+ 
+   console.log(`Calcul du score pour la tâche "${task.title}": status=${task.status}, priority=${task.priority}`);
+ 
+   if (["Done", "Tested", "Completed"].includes(task.status)) {
+       score = priorityWeights[task.priority] || 1;
+   } else if (["In Progress", "Review"].includes(task.status)) {
+       const progress = task.status === "In Progress" ? 0.5 : 0.8;
+       score = progress * (priorityWeights[task.priority] || 1);
+   }
+ 
+   const effort = effortByPriority[task.priority] || 0;
+   const effortBonus = effort * 0.5;
+   score += effortBonus;
+   console.log(`Effort dérivé pour priorité ${task.priority}: ${effort}, bonus effort: ${effortBonus}`);
+ 
+   let statusBonus = 0;
+   if (["Done", "Tested", "Completed"].includes(task.status)) {
+       statusBonus = 1;
+   } else if (task.status === "Review") {
+       statusBonus = 0.5;
+   } else if (task.status === "In Progress") {
+       statusBonus = 0.2;
+   }
+   score += statusBonus;
+   console.log(`Bonus basé sur le statut ${task.status}: ${statusBonus}`);
+ 
+   console.log(`Score calculé pour la tâche "${task.title}": ${score}`);
+   return score;
+ };
+ 
+ // Route : Meilleur utilisateur global
+ exports.getBestWeeklyUser = async (req, res) => {
+   try {
+       console.log("Requête reçue pour getBestWeeklyUser avec weekStart:", req.query.weekStart);
+       const { weekStart, role } = req.query;
+       if (!weekStart) {
+           return res.status(400).json({ message: "Le paramètre weekStart est requis" });
+       }
+ 
+       const startDate = new Date(weekStart);
+       if (isNaN(startDate.getTime())) {
+           console.log("Invalid weekStart format:", weekStart);
+           return res.status(400).json({ message: "Format de weekStart invalide" });
+       }
+       startDate.setUTCHours(0, 0, 0, 0);
+       const endDate = new Date(startDate);
+       endDate.setDate(startDate.getDate() + 6);
+       endDate.setUTCHours(23, 59, 59, 999);
+       console.log("Période normalisée:", startDate, "à", endDate);
+ 
+       const users = await User.find().populate("role");
+       if (!users || users.length === 0) {
+           console.log("Aucun utilisateur trouvé dans la base de données");
+           return res.status(200).json({
+               bestUser: null,
+               weekStart: startDate.toISOString().split("T")[0],
+               weekEnd: endDate.toISOString().split("T")[0],
+           });
+       }
+       console.log("Utilisateurs trouvés:", users.map(u => ({ id: u._id?.toString() || "N/A", name: `${u.firstname} ${u.lastname}`, role: u.role ? u.role.name : "Unknown" })));
+ 
+       const userScores = await Promise.all(
+           users.map(async (user) => {
+               if (!user._id) {
+                   console.log(`Utilisateur sans _id valide, ignoré: ${user.firstname} ${user.lastname}`);
+                   return null;
+               }
+ 
+               let projects;
+               try {
+                   projects = await Project.find({
+                       $or: [{ projectManager: user._id }, { teamMembers: user._id }],
+                       startDate: { $lte: endDate },
+                       endDate: { $gte: startDate },
+                   });
+               } catch (error) {
+                   console.error(`Erreur lors de la recherche des projets pour ${user.firstname} ${user.lastname}:`, error.message);
+                   return null;
+               }
+               console.log(`Projets pour ${user.firstname} ${user.lastname}:`, projects.length);
+ 
+               const projectIds = projects.map(project => project._id);
+               let tasks;
+               try {
+                   tasks = await Task.find({
+                       assignedTo: user._id,
+                       project: { $in: projectIds },
+                       status: { $in: ["Done", "Tested", "Completed", "In Progress", "Review"] },
+                   });
+               } catch (error) {
+                   console.error(`Erreur lors de la recherche des tâches pour ${user.firstname} ${user.lastname}:`, error.message);
+                   return null;
+               }
+               console.log(`Tâches actives pour ${user.firstname} ${user.lastname} (${user._id}) dans les projets actifs:`, tasks.length);
+ 
+               // Calculer le score de base à partir des tâches
+               let score = tasks.reduce((total, task) => total + calculateTaskScore(task), 0);
+               console.log(`Score de base pour ${user.firstname} ${user.lastname}: ${score}`);
+ 
+               // Pénalité pour les tâches en retard
+               let overdueTasks;
+               try {
+                   overdueTasks = await Task.find({
+                       assignedTo: user._id,
+                       project: { $in: projectIds },
+                       dueDate: { $exists: true, $lte: new Date() }, // dueDate existe et est dépassée
+                       status: { $nin: ["Done", "Tested", "Completed"] }, // Statut non terminé
+                   });
+               } catch (error) {
+                   console.error(`Erreur lors de la recherche des tâches en retard pour ${user.firstname} ${user.lastname}:`, error.message);
+                   overdueTasks = [];
+               }
+               const overduePenalty = overdueTasks.length * -2; // Pénalité de -2 par tâche en retard
+               score += overduePenalty;
+               console.log(`Pénalité pour ${overdueTasks.length} tâches en retard pour ${user.firstname} ${user.lastname}: ${overduePenalty}`);
+ 
+               // Bonus pour les nouvelles assignations dans la semaine
+               let newlyAssignedTasks;
+               try {
+                   newlyAssignedTasks = await Task.find({
+                       assignedTo: user._id,
+                       project: { $in: projectIds },
+                       startDate: { $gte: startDate, $lte: endDate }, // Tâches assignées dans la semaine
+                   });
+               } catch (error) {
+                   console.error(`Erreur lors de la recherche des nouvelles tâches assignées pour ${user.firstname} ${user.lastname}:`, error.message);
+                   newlyAssignedTasks = [];
+               }
+               const newAssignmentBonus = newlyAssignedTasks.length * 1; // Bonus de +1 par nouvelle tâche
+               score += newAssignmentBonus;
+               console.log(`Bonus pour ${newlyAssignedTasks.length} nouvelles tâches assignées pour ${user.firstname} ${user.lastname}: ${newAssignmentBonus}`);
+ 
+               // Bonus pour Project Manager si applicable
+               if (user.role?.name === "Project Manager") {
+                   const pmBonus = await calculateProjectManagerBonus(user._id, startDate, endDate);
+                   score += pmBonus;
+                   console.log(`Bonus de Project Manager pour ${user.firstname} ${user.lastname}: ${pmBonus}`);
+               }
+ 
+               // S'assurer que le score ne soit pas négatif
+               score = Math.max(0, score);
+               console.log(`Score final ajusté pour ${user.firstname} ${user.lastname}: ${score}`);
+ 
+               return {
+                   userId: user._id.toString(),
+                   firstname: user.firstname || "Unknown",
+                   lastname: user.lastname || "User",
+                   role: user.role ? user.role.name : "Unknown",
+                   profileImage: user.profileImage || "",
+                   score: parseFloat(score.toFixed(2)),
+                   taskCount: tasks.length,
+                   overdueTasks: overdueTasks.length,
+                   newlyAssignedTasks: newlyAssignedTasks.length,
+               };
+           })
+       );
+ 
+       const validUserScores = userScores.filter(userScore => userScore !== null);
+       console.log("Scores des utilisateurs:", validUserScores);
+ 
+       validUserScores.sort((a, b) => b.score - a.score);
+       const bestUser = validUserScores.length > 0 && validUserScores[0].score > 0 ? validUserScores[0] : null;
+       console.log("Meilleur utilisateur:", bestUser);
+ 
+       // Attribuer les badges
+       if (bestUser && role === "Admin") {
+           bestUser.badges = ["Best Weekly Performer", "Star Collaborator"];
+       } else if (bestUser) {
+           bestUser.badges = ["Best Weekly Performer"];
+       }
+ 
+       res.status(200).json({
+           bestUser,
+           weekStart: startDate.toISOString().split("T")[0],
+           weekEnd: endDate.toISOString().split("T")[0],
+       });
+   } catch (error) {
+       console.error("Erreur lors du calcul du meilleur utilisateur:", error);
+       res.status(500).json({ message: "Erreur serveur" });
+   }
+ };
+ 
+ // Route : Meilleur utilisateur par projet
+ exports.getBestWeeklyUserPerProject = async (req, res) => {
+   try {
+       console.log("Requête reçue pour getBestWeeklyUserPerProject avec weekStart:", req.query.weekStart);
+       const { weekStart, userId, role } = req.query;
+       if (!weekStart) {
+           return res.status(400).json({ message: "Le paramètre weekStart est requis" });
+       }
+ 
+       const startDate = new Date(weekStart);
+       if (isNaN(startDate.getTime())) {
+           console.log("Invalid weekStart format:", weekStart);
+           return res.status(400).json({ message: "Format de weekStart invalide" });
+       }
+       startDate.setUTCHours(0, 0, 0, 0);
+       const endDate = new Date(startDate);
+       endDate.setDate(startDate.getDate() + 6);
+       endDate.setUTCHours(23, 59, 59, 999);
+       console.log("Période normalisée:", startDate, "à", endDate);
+ 
+       // Récupérer les projets en fonction du rôle
+       let projects;
+       if (role === "Admin") {
+           projects = await Project.find({
+               startDate: { $lte: endDate },
+               endDate: { $gte: startDate },
+           });
+       } else {
+           projects = await Project.find({
+               $or: [{ projectManager: userId }, { teamMembers: userId }],
+               startDate: { $lte: endDate },
+               endDate: { $gte: startDate },
+           });
+       }
+ 
+       if (!projects || projects.length === 0) {
+           console.log("Aucun projet trouvé pour cette période");
+           return res.status(200).json({
+               bestUsersPerProject: [],
+               weekStart: startDate.toISOString().split("T")[0],
+               weekEnd: endDate.toISOString().split("T")[0],
+           });
+       }
+ 
+       const bestUsersPerProject = await Promise.all(
+           projects.map(async (project) => {
+               const projectId = project._id;
+               const teamMemberIds = [
+                   project.projectManager?._id,
+                   ...(project.teamMembers || []).map(member => member._id),
+               ].filter(Boolean);
+ 
+               if (!teamMemberIds.length) {
+                   return { projectId: projectId.toString(), projectName: project.name, bestUser: null };
+               }
+ 
+               const users = await User.find({ _id: { $in: teamMemberIds } }).populate("role");
+ 
+               const userScores = await Promise.all(
+                   users.map(async (user) => {
+                       if (!user._id) {
+                           console.log(`Utilisateur sans _id valide, ignoré: ${user.firstname} ${user.lastname}`);
+                           return null;
+                       }
+ 
+                       let tasks;
+                       try {
+                           tasks = await Task.find({
+                               assignedTo: user._id,
+                               project: projectId,
+                               status: { $in: ["Done", "Tested", "Completed", "In Progress", "Review"] },
+                           });
+                       } catch (error) {
+                           console.error(`Erreur lors de la recherche des tâches pour ${user.firstname} ${user.lastname}:`, error.message);
+                           return null;
+                       }
+ 
+                       // Calculer le score de base
+                       let score = tasks.reduce((total, task) => total + calculateTaskScore(task), 0);
+                       console.log(`Score de base pour ${user.firstname} ${user.lastname} dans le projet ${project.name}: ${score}`);
+ 
+                       // Pénalité pour les tâches en retard
+                       let overdueTasks;
+                       try {
+                           overdueTasks = await Task.find({
+                               assignedTo: user._id,
+                               project: projectId,
+                               dueDate: { $exists: true, $lte: new Date() },
+                               status: { $nin: ["Done", "Tested", "Completed"] },
+                           });
+                       } catch (error) {
+                           console.error(`Erreur lors de la recherche des tâches en retard pour ${user.firstname} ${user.lastname}:`, error.message);
+                           overdueTasks = [];
+                       }
+                       const overduePenalty = overdueTasks.length * -2;
+                       score += overduePenalty;
+                       console.log(`Pénalité pour ${overdueTasks.length} tâches en retard pour ${user.firstname} ${user.lastname} dans le projet ${project.name}: ${overduePenalty}`);
+ 
+                       // Bonus pour les nouvelles assignations dans la semaine
+                       let newlyAssignedTasks;
+                       try {
+                           newlyAssignedTasks = await Task.find({
+                               assignedTo: user._id,
+                               project: projectId,
+                               startDate: { $gte: startDate, $lte: endDate },
+                           });
+                       } catch (error) {
+                           console.error(`Erreur lors de la recherche des nouvelles tâches assignées pour ${user.firstname} ${user.lastname}:`, error.message);
+                           newlyAssignedTasks = [];
+                       }
+                       const newAssignmentBonus = newlyAssignedTasks.length * 1;
+                       score += newAssignmentBonus;
+                       console.log(`Bonus pour ${newlyAssignedTasks.length} nouvelles tâches assignées pour ${user.firstname} ${user.lastname} dans le projet ${project.name}: ${newAssignmentBonus}`);
+ 
+                       // S'assurer que le score ne soit pas négatif
+                       score = Math.max(0, score);
+                       console.log(`Score final ajusté pour ${user.firstname} ${user.lastname} dans le projet ${project.name}: ${score}`);
+ 
+                       return {
+                           userId: user._id.toString(),
+                           firstname: user.firstname || "Unknown",
+                           lastname: user.lastname || "User",
+                           role: user.role ? user.role.name : "Unknown",
+                           profileImage: user.profileImage || "",
+                           score: parseFloat(score.toFixed(2)),
+                           taskCount: tasks.length,
+                           overdueTasks: overdueTasks.length,
+                           newlyAssignedTasks: newlyAssignedTasks.length,
+                       };
+                   })
+               );
+ 
+               const validUserScores = userScores.filter(userScore => userScore !== null);
+               validUserScores.sort((a, b) => b.score - a.score);
+               const bestUser = validUserScores.length > 0 && validUserScores[0].score > 0 ? validUserScores[0] : null;
+ 
+               if (bestUser) {
+                   bestUser.badges = ["Best Weekly Performer"];
+               }
+ 
+               return {
+                   projectId: projectId.toString(),
+                   projectName: project.name,
+                   bestUser,
+               };
+           })
+       );
+ 
+       res.status(200).json({
+           bestUsersPerProject,
+           weekStart: startDate.toISOString().split("T")[0],
+           weekEnd: endDate.toISOString().split("T")[0],
+       });
+   } catch (error) {
+       console.error("Erreur lors du calcul du meilleur utilisateur par projet:", error);
+       res.status(500).json({ message: "Erreur serveur" });
+   }
+ };
+ 
+  
+
+

@@ -86,30 +86,34 @@ function predictDelay(project) {
   const output = net.run(input);
   console.log("Sortie de Brain.js:", output);
 
+  // Arrondir immédiatement la prédiction pour éviter les décimales
   let delayDays = Math.round(output[0] * 365);
 
   // Logique métier ajustée
   if (status === 'Completed' || tasksCompleted >= 1) {
     delayDays = 0; // Pas de retard si terminé
   } else if (isOverdue) {
-    const overdueDays = Math.abs(elapsedDays - totalDuration);
-    delayDays = Math.max(overdueDays, delayDays); // Minimum = retard réel
+    const overdueDays = Math.round(Math.abs(elapsedDays - totalDuration)); // Arrondi ici
+    delayDays = Math.max(overdueDays, delayDays); // Prendre le maximum, déjà arrondi
   } else if (progressGap > 0.3) {
-    const remainingDays = Math.max((new Date(endDate) - today) / (1000 * 60 * 60 * 24), 0);
-    const estimatedDaysNeeded = tasks.length * (1 - tasksCompleted) * 2; // 2 jours par tâche
+    const remainingDays = Math.round(Math.max((new Date(endDate) - today) / (1000 * 60 * 60 * 24), 0)); // Arrondi ici
+    const estimatedDaysNeeded = Math.round(tasks.length * (1 - tasksCompleted) * 2); // 2 jours par tâche, arrondi
     if (estimatedDaysNeeded > remainingDays) {
-      delayDays = Math.round(Math.min(delayDays, estimatedDaysNeeded - remainingDays));
+      delayDays = Math.round(Math.min(delayDays, estimatedDaysNeeded - remainingDays)); // Arrondi final
     } else if (delayDays > remainingDays) {
-      delayDays = Math.round(Math.min(delayDays, remainingDays * progressGap));
+      delayDays = Math.round(Math.min(delayDays, remainingDays * progressGap)); // Arrondi final
     }
   } else {
     delayDays = 0; // Pas de retard si écart faible
   }
 
+  // Garantir que delayDays est un entier
+  delayDays = Math.round(delayDays);
+
   const riskOfDelay = delayDays > 0 || isOverdue ? 'Oui' : 'Non';
 
   return {
-    delayDays,
+    delayDays, // Maintenant garanti comme entier
     riskOfDelay,
     details: {
       progressExpected: (progressExpected * 100).toFixed(2) + '%',

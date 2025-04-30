@@ -19,18 +19,19 @@ const UserSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId, 
       ref: 'Role',
       default: async () => {
-        const guestRole = await Role.findOne({ name: 'Guest' });
+        const guestRole = await Role.findOne({ name: 'Admin' });
         return guestRole ? guestRole._id : null;
       } 
     },
     resetCode: { type: String },
     resetCodeExpires: { type: Date },
     faceLabel: { type: String },
-    isTwoFactorEnabled: { type: Boolean, default: true },
+    isTwoFactorEnabled: { type: Boolean, default: false },
     twoFactorSecret: { type: String },
     twoFactorTempSecret: { type: String },
     profileImage: { type: String, default: "" },
-    // Nouveaux attributs ajoutés
+    cv: { type: String, default: "" }, // Nouveau champ pour l'URL du CV
+    skills: [{ type: String, default: [] }], // Nouveau champ pour les compétences
     managedProjects: [{ 
       type: mongoose.Schema.Types.ObjectId, 
       ref: "Project", 
