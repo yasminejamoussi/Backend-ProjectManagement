@@ -1,0 +1,137 @@
+pipeline {
+    agent any
+
+    environment {
+        BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
+        FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
+        SONAR_TOKEN = credentials('sonarqube')
+        NEXUS_URL = '192.168.33.10:8083'
+        NEXUS_REPOSITORY = 'dockr-repo'
+        NEXUS_CREDENTIAL_ID = 'nexus'
+    }
+
+   stages {
+        stage('Checkout Code') {
+            steps {
+                script {
+                    echo "📥 Clonage du Backend..."
+                    sh "git clone -b final ${BACKEND_REPO} backend"
+                    echo "📥 Clonage du Frontend..."
+                    sh "git clone ${FRONTEND_REPO} frontend"
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            parallel {
+                stage('Backend') {
+                    steps {
+                        dir('backend') {
+                            echo "📦 Installation des dépendances du backend..."
+                            sh 'npm install'
+                        }
+                    }
+                }
+                stage('Frontend') {
+                    steps {
+                        dir('frontend') {
+                            echo "📦 Installation des dépendances du frontend..."
+                            sh 'npm install'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'sonarqube'
+                    withSonarQubeEnv('sonarqube') {
+                        dir('backend') {
+                            echo "🚀 Analyse SonarQube..."
+                            timeout(time: 10, unit: 'MINUTES') {
+                                withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
+                                    sh """
+                                    ${scannerHome}/bin/sonar-scanner \
+                                     -Dsonar.projectKey=ProjectManagementPI \
+                                    -Dsonar.projectName=ProjectManagementPI \
+                                    -Dsonar.sources=src \
+                                    -Dsonar.language=js \
+                                    -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/utils/**,src/controllers/**,src/routes/**,src/middleware/**,src/server.js \
+                                    -Dsonar.host.url=http://192.168.33.10:9000 \
+                                    -Dsonar.login=${SONAR_LOGIN} \
+                                    -X || true
+                                    """
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Unit Test Backend') {
+            steps {
+                dir('backend') {
+                    sh 'npm install --save-dev jest-junit'
+                    timeout(time: 10, unit: 'MINUTES') {
+                        sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
+                    }
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                dir('frontend') {
+                    echo "🛠️ Construction du frontend..."
+                    sh 'npm run build'
+                }
+            }
+        }
+
+        stage('Deploy Docker Image to Nexus') {
+            steps {
+                script {
+                    echo "📤 Déploiement de l'image backend vers Nexus..."
+                    dir('backend') {
+                        def imageName = "projectmanagement"
+                        def imageTag = "${env.BUILD_NUMBER}"
+                        def fullImageName = "${imageName}:${imageTag}"
+                        
+                        sh "docker build -t ${fullImageName} ."
+                        docker.withRegistry("http://${NEXUS_URL}", NEXUS_CREDENTIAL_ID) {
+                            sh "docker tag ${fullImageName} ${NEXUS_URL}/${imageName}:${imageTag}"
+                            sh "docker push ${NEXUS_URL}/${imageName}:${imageTag}"
+                        }
+                    }
+                }
+            }
+        }
+
+
+        stage('Run Application') {
+            steps {
+                script {
+                    echo "🚀 Démarrage de l'application..."
+                    sh 'docker-compose -f docker-compose.yaml up -d'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Pipeline exécuté avec succès !'
+        }
+        failure {
+            echo '❌ Le pipeline a échoué. Vérifiez les logs.'
+        }
+        always {
+            echo "📂 Nettoyage de l'espace de travail après exécution..."
+            sh 'docker-compose down -v || true'
+            cleanWs()
+        }
+    }
+}
