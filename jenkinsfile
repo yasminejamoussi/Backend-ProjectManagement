@@ -4,8 +4,8 @@ pipeline {
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
-        SONAR_TOKEN = credentials('sonarqube')
-        NEXUS_URL = '192.168.33.10:8083'
+        SONAR_TOKEN = credentials('sonarqb')
+        NEXUS_URL = '192.168.33.10:8082'
         NEXUS_REPOSITORY = 'dockr-repo'
         NEXUS_CREDENTIAL_ID = 'nexus'
     }
@@ -121,7 +121,7 @@ pipeline {
         }
     }
 
-    post {
+    /*post {
         success {
             echo '✅ Pipeline exécuté avec succès !'
         }
@@ -133,5 +133,21 @@ pipeline {
             sh 'docker-compose down -v || true'
             cleanWs()
         }
-    }
+    }*/
+    post {
+            success {
+                echo '✅ Pipeline exécuté avec succès !'
+            }
+            failure {
+                echo '❌ Le pipeline a échoué. Vérifiez les logs.'
+            }
+            always {
+                node {
+                    echo "📂 Nettoyage de l'espace de travail après exécution..."
+                    sh 'docker-compose down -v || true'
+                    cleanWs()
+                }
+            }
+        }
+    
 }
