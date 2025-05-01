@@ -134,20 +134,18 @@ pipeline {
             cleanWs()
         }
     }*/
-    post {
-            success {
-                echo '✅ Pipeline exécuté avec succès !'
-            }
-            failure {
-                echo '❌ Le pipeline a échoué. Vérifiez les logs.'
-            }
-            always {
-                node {
-                    echo "📂 Nettoyage de l'espace de travail après exécution..."
-                    sh 'docker-compose down -v || true'
-                    cleanWs()
-                }
-            }
-        }
+ post {
+    success {
+        echo '✅ Pipeline exécuté avec succès !'
+    }
+    failure {
+        echo '❌ Le pipeline a échoué. Vérifiez les logs.'
+    }
+    always {
+        echo "📂 Nettoyage de l'espace de travail après exécution..."
+        sh 'docker-compose down -v || true'
+        cleanWs()
+    }
+}
     
 }
