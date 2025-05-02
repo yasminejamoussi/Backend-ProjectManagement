@@ -12,16 +12,14 @@ services:
 
   web:
     build:
-      context: ../FrontEnd-ProjectManagement/projectmanagement  # Chemin corrigé
+      context: ../frontend/projectmanagement  # Chemin corrigé
       dockerfile: Dockerfile
     container_name: web
     ports:
       - "5173:5173"  # Format correct
     volumes:
-      - "../FrontEnd-ProjectManagement/projectmanagement:/src"
+      - "../frontend/projectmanagement:/src"
       - "/src/node_modules"
-      # Supprime cette ligne si le dossier public n'existe pas dans projectmanagement :
-      - "../FrontEnd-ProjectManagement/projectmanagement/public:/src/public"
 
   mongo:
     image: mongo
