@@ -85,7 +85,7 @@ pipeline {
                 }
             }
         }*/
-          /* stage('Start Docker Services') {
+          stage('Start Docker Services') {
             steps {
                 dir('backend') {
                     echo "🚀 Démarrage des services Docker pour les tests..."
@@ -95,8 +95,7 @@ pipeline {
                     '''
                 }
             }
-        }*/
-    
+        }   
         stage('Unit Test Backend') {
             steps {
                 dir('backend') {
