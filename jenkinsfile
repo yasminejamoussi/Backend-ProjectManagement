@@ -85,24 +85,33 @@ pipeline {
                 }
             }
         }*/
-        stage('Start Docker Services') {
+       stage('Start Docker Services') {
             steps {
                 dir('backend') {
                     echo "🚀 Démarrage des services Docker pour les tests..."
-                    timeout(time: 30, unit: 'MINUTES') { // Augmenter le timeout à 30 minutes
-                        sh '''
-                            echo "📦 Vérification des images Docker existantes..."
-                            docker images
-                            echo "🚀 Lancement de docker-compose..."
-                            docker-compose -f docker-compose.yml up -d || {
-                                echo "❌ Échec du démarrage des services Docker. Tentative de redémarrage..."
-                                docker-compose -f docker-compose.yml down -v
-                                docker-compose -f docker-compose.yml up -d
+                    timeout(time: 30, unit: 'MINUTES') {
+                        script {
+                            try {
+                                sh '''
+                                    echo "📦 Vérification des images Docker existantes..."
+                                    docker images
+                                    echo "🚀 Lancement de docker-compose..."
+                                    docker-compose -f docker-compose.yml up -d
+                                    echo "🔍 Vérification des conteneurs en cours d'exécution..."
+                                    docker ps -a
+                                    sleep 15 # Attendre que MongoDB soit prêt
+                                '''
+                            } catch (Exception e) {
+                                echo "❌ Erreur lors du démarrage des services Docker : ${e.getMessage()}"
+                                sh '''
+                                    echo "🔍 Affichage des logs des conteneurs pour diagnostic..."
+                                    docker-compose -f docker-compose.yml logs || true
+                                    echo "🧹 Nettoyage des conteneurs..."
+                                    docker-compose -f docker-compose.yml down -v || true
+                                '''
+                                error "Échec de l'étape Start Docker Services."
                             }
-                            echo "🔍 Vérification des conteneurs en cours d'exécution..."
-                            docker ps -a
-                            sleep 15 # Attendre que MongoDB soit prêt
-                        '''
+                        }
                     }
                 }
             }
