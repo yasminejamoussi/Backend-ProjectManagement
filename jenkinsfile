@@ -85,17 +85,28 @@ pipeline {
                 }
             }
         }*/
-          stage('Start Docker Services') {
+        stage('Start Docker Services') {
             steps {
                 dir('backend') {
                     echo "🚀 Démarrage des services Docker pour les tests..."
-                    sh '''
-                        docker-compose -f docker-compose.yml up -d
-                        sleep 15 # Attendre que MongoDB soit prêt
-                    '''
+                    timeout(time: 30, unit: 'MINUTES') { // Augmenter le timeout à 30 minutes
+                        sh '''
+                            echo "📦 Vérification des images Docker existantes..."
+                            docker images
+                            echo "🚀 Lancement de docker-compose..."
+                            docker-compose -f docker-compose.yml up -d || {
+                                echo "❌ Échec du démarrage des services Docker. Tentative de redémarrage..."
+                                docker-compose -f docker-compose.yml down -v
+                                docker-compose -f docker-compose.yml up -d
+                            }
+                            echo "🔍 Vérification des conteneurs en cours d'exécution..."
+                            docker ps -a
+                            sleep 15 # Attendre que MongoDB soit prêt
+                        '''
+                    }
                 }
             }
-        }   
+        }}   
         stage('Unit Test Backend') {
             steps {
                 dir('backend') {
