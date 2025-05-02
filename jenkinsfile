@@ -12,6 +12,16 @@ pipeline {
     }
 
    stages {
+      stage('Configure Git') {
+            steps {
+                sh '''
+                    git config http.postBuffer 524288000
+                    git config http.lowSpeedLimit 0
+                    git config http.lowSpeedTime 999999
+                    git config core.compression 0
+                '''
+            }
+        }
         stage('Checkout Code') {
             steps {
                 script {
