@@ -6,7 +6,6 @@ require("dotenv").config();
 
 describe("Auth Controller Tests", () => {
   const mongoUri = "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
-  //const mongoUri = "mongodb://testuser:testpass@192.168.1.16:27018/testdb?authSource=admin";
   let userId; // ✅ Correction : Ajout de userId
   let authToken;
   let twoFaToken;
