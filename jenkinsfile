@@ -83,15 +83,16 @@ pipeline {
                 }
             }
         }*/
-       stage('Unit Test Backend') {
+    
+        stage('Unit Test Backend') {
             steps {
                 dir('backend') {
-                    // Ajout de sudo pour les commandes apt-get
+                    // Créer l'environnement virtuel dans le répertoire backend
                     sh '''
                         sudo apt-get update
                         sudo apt-get install -y python3 python3-pip python3-venv
-                        python3 -m venv /venv
-                        /venv/bin/pip install -r requirements.txt || /venv/bin/pip install pandas numpy
+                        python3 -m venv venv
+                        ./venv/bin/pip install -r requirements.txt || ./venv/bin/pip install pandas numpy
                     '''
                     sh 'npm install --save-dev jest-junit'
                     timeout(time: 10, unit: 'MINUTES') {
