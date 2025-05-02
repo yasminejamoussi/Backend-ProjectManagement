@@ -12,16 +12,7 @@ pipeline {
     }
 
    stages {
-      stage('Configure Git') {
-            steps {
-                sh '''
-                    git config http.postBuffer 524288000
-                    git config http.lowSpeedLimit 0
-                    git config http.lowSpeedTime 999999
-                    git config core.compression 0
-                '''
-            }
-        }
+     
         stage('Checkout Code') {
             steps {
                 script {
@@ -92,23 +83,23 @@ pipeline {
                 }
             }
         }*/
-        stage('Unit Test Backend') {
-    steps {
-        dir('backend') {
-            // Ajout de l'étape pour configurer Python
-            sh '''
-                apt-get update
-                apt-get install -y python3 python3-pip python3-venv
-                python3 -m venv /venv
-                /venv/bin/pip install -r requirements.txt || /venv/bin/pip install pandas numpy
-            '''
-            sh 'npm install --save-dev jest-junit'
-            timeout(time: 10, unit: 'MINUTES') {
-                sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
+       stage('Unit Test Backend') {
+            steps {
+                dir('backend') {
+                    // Ajout de sudo pour les commandes apt-get
+                    sh '''
+                        sudo apt-get update
+                        sudo apt-get install -y python3 python3-pip python3-venv
+                        python3 -m venv /venv
+                        /venv/bin/pip install -r requirements.txt || /venv/bin/pip install pandas numpy
+                    '''
+                    sh 'npm install --save-dev jest-junit'
+                    timeout(time: 10, unit: 'MINUTES') {
+                        sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
+                    }
+                }
             }
         }
-    }
-}
 
         stage('Build Frontend') {
             steps {
