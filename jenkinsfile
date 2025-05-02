@@ -1,6 +1,6 @@
 pipeline {
    // agent any 
-    agent any {
+    agent {
         docker {
             image 'node:18' // Image Node.js pour exécuter les tests
             args '-v /var/lib/jenkins/workspace:/var/lib/jenkins/workspace -v /var/run/docker.sock:/var/run/docker.sock'
