@@ -106,7 +106,7 @@ pipeline {
                     }
                 }
             }
-        }}   
+        }
         stage('Unit Test Backend') {
             steps {
                 dir('backend') {
