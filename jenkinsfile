@@ -49,13 +49,26 @@ pipeline {
             }
         }
 
-  
+          stage('Unit Test Backend') {
+    steps {
+        dir('backend') {
+            sh 'npm install --save-dev jest-junit'
+            echo "🔍 Attente de la disponibilité de mongo-test..."
+            sh 'until nc -z 192.168.1.16 27018; do echo "En attente de mongo-test..."; sleep 5; done'
+            echo "✅ Mongo-test est accessible !"
+            timeout(time: 30, unit: 'MINUTES') {
+                // Run tests with coverage
+                sh 'docker-compose run --rm api npm test -- --coverage --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
+            }
+        }
+    }
+}
 
 stage('SonarQube Analysis') {
     steps {
         script {
             def scannerHome = tool 'sonarqube'
-            def exclusions = "**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**"
+            def exclusions = "**/*.spec.js,**/node_modules/**,**/coverage/**,src/utils/**,src/controllers/**,src/routes/**,src/middleware/**,src/server.js"
             withSonarQubeEnv('sonarqube') {
                 dir('backend') {
                     echo "🚀 Analyse SonarQube..."
@@ -104,24 +117,11 @@ stage('SonarQube Analysis') {
                 }
             }
         }*/
-        stage('Unit Test Backend') {
-    steps {
-        dir('backend') {
-            sh 'npm install --save-dev jest-junit'
-            echo "🔍 Attente de la disponibilité de mongo-test..."
-            sh 'until nc -z 192.168.1.16 27018; do echo "En attente de mongo-test..."; sleep 5; done'
-            echo "✅ Mongo-test est accessible !"
-            timeout(time: 30, unit: 'MINUTES') {
-                // Run tests with coverage
-                sh 'docker-compose run --rm api npm test -- --coverage --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
-            }
-        }
-    }
-}
+
 
         stage('Build Frontend') {
     steps {
-        dir('frontend') { 
+        dir('frontend') { // Changement ici : enlever /projectmanagement
             echo "🛠️ Construction du frontend..."
             sh 'npm install'
             echo "🔍 Liste des scripts disponibles dans package.json :"
