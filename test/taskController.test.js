@@ -30,18 +30,12 @@ describe("Task Controller CRUD Tests", () => {
   };
 
   beforeAll(async () => {
-    process.env.NODE_ENV = "test";
-    /*if (mongoose.connection.readyState === 0) {
-      console.log("🕐 Connecting to MongoDB...");
-      await mongoose.connect(mongoUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-      });
-    }*/
-      if (mongoose.connection.readyState === 0) {
-        console.log("🕐 Connecting to MongoDB...");
-        await mongoose.connect(mongoUri);
-      }
+   
+      process.env.NODE_ENV = "test";
+    if (mongoose.connection.readyState === 0) {
+      console.log("🕐 Connexion à MongoDB...");
+      await mongoose.connect(mongoUri);
+    }
 
     let attempts = 0;
     while (mongoose.connection.readyState !== 1 && attempts < 5) {
