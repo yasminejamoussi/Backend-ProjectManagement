@@ -8,7 +8,8 @@ const Task = require("../src/models/Task");
 require("dotenv").config();
 
 describe("Task Controller CRUD Tests", () => {
-  const mongoUri = "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
+  //const mongoUri = "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
+  const mongoUri = process.env.TEST_MONGO_URI || "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
   let pmToken, teamMemberToken;
   let pmId, teamMemberId, projectId;
 

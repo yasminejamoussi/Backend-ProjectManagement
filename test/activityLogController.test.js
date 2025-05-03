@@ -12,7 +12,8 @@ require("dotenv").config();
 jest.mock("nodemailer"); // Mock nodemailer to prevent actual email sending
 
 describe("ActivityLog Controller Tests", () => {
-  const mongoUri = "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
+  //const mongoUri = "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
+  const mongoUri = process.env.TEST_MONGO_URI || "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
   let adminUser, pmUser, teamMemberUser;
   let adminRole, pmRole, teamMemberRole;
   let project, task;
