@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node src/server.js",
     "server": "nodemon src/server.js",
-    "test": "cross-env NODE_ENV=test node ./node_modules/jest/bin/jest.js --ci --testTimeout=60000 --reporters=default --reporters=jest-junit --verbose"
+    "test": "cross-env NODE_ENV=test node ./node_modules/jest/bin/jest.js --ci --testTimeout=120000 --reporters=default --reporters=jest-junit --verbose"
   },
   "keywords": [],
   "author": "",
