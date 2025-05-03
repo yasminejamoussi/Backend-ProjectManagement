@@ -75,57 +75,9 @@ pipeline {
             }
         }
 
-        /*stage('Unit Test Backend') {
-            steps {
-                dir('backend') {
-                    sh 'npm install --save-dev jest-junit'
-                    timeout(time: 10, unit: 'MINUTES') {
-                        sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
-                    }
-                }
-            }
-        }*/
-      /* stage('Start Docker Services') {
-            steps {
-                dir('backend') {
-                    echo "🚀 Démarrage des services Docker pour les tests..."
-                    timeout(time: 30, unit: 'MINUTES') {
-                        script {
-                            try {
-                                sh '''
-                                    echo "📦 Vérification des images Docker existantes..."
-                                    docker images
-                                    echo "🚀 Lancement de docker-compose..."
-                                    docker-compose -f docker-compose.yml up -d
-                                    echo "🔍 Vérification des conteneurs en cours d'exécution..."
-                                    docker ps -a
-                                    sleep 15 # Attendre que MongoDB soit prêt
-                                '''
-                            } catch (Exception e) {
-                                echo "❌ Erreur lors du démarrage des services Docker : ${e.getMessage()}"
-                                sh '''
-                                    echo "🔍 Affichage des logs des conteneurs pour diagnostic..."
-                                    docker-compose -f docker-compose.yml logs || true
-                                    echo "🧹 Nettoyage des conteneurs..."
-                                    docker-compose -f docker-compose.yml down -v || true
-                                '''
-                                error "Échec de l'étape Start Docker Services."
-                            }
-                        }
-                    }
-                }
-            }
-        }*/
         stage('Unit Test Backend') {
             steps {
                 dir('backend') {
-                    // Créer l'environnement virtuel dans le répertoire backend
-                    sh '''
-                        sudo apt-get update
-                        sudo apt-get install -y python3 python3-pip python3-venv
-                        python3 -m venv venv
-                        ./venv/bin/pip install -r requirements.txt || ./venv/bin/pip install pandas numpy
-                    '''
                     sh 'npm install --save-dev jest-junit'
                     timeout(time: 10, unit: 'MINUTES') {
                         sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
@@ -143,7 +95,7 @@ pipeline {
             }
         }
 
-        stage('Deploy Docker Image to Nexus') {
+      /*  stage('Deploy Docker Image to Nexus') {
             steps {
                 script {
                     echo "📤 Déploiement de l'image backend vers Nexus..."
@@ -160,8 +112,7 @@ pipeline {
                     }
                 }
             }
-        }
-
+        }*/
 
         stage('Run Application') {
             steps {
