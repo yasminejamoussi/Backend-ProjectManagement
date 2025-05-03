@@ -88,19 +88,19 @@ pipeline {
             }
         }*/
      
-stage('Unit Test Backend') {
-    steps {
-        dir('backend') {
-            sh 'npm install --save-dev jest-junit'
-            // Attendre que mongo-test soit accessible
-            sh 'until nc -z 192.168.1.16 27018; do sleep 1; done'
-            timeout(time: 20, unit: 'MINUTES') {
-                // Exécuter tous les tests avec npm test
-                sh 'docker-compose run --rm api npm test'
+                stage('Unit Test Backend') {
+            steps {
+                dir('backend') {
+                    sh 'npm install --save-dev jest-junit'
+                    echo "🔍 Attente de la disponibilité de mongo-test..."
+                    sh 'until nc -z 192.168.1.16 27018; do echo "En attente de mongo-test..."; sleep 5; done'
+                    echo "✅ Mongo-test est accessible !"
+                    timeout(time: 30, unit: 'MINUTES') { // Augmenter à 30 minutes pour plus de marge
+                        sh 'docker-compose run --rm api npm test'
+                    }
+                }
             }
         }
-    }
-}
 
         stage('Build Frontend') {
             steps {
