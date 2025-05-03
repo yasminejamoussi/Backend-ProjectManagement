@@ -103,13 +103,16 @@ pipeline {
         }
 
         stage('Build Frontend') {
-            steps {
-                dir('frontend') {
-                    echo "🛠️ Construction du frontend..."
-                    sh 'npm run build'
-                }
-            }
+    steps {
+        dir('frontend') { // Changement ici : enlever /projectmanagement
+            echo "🛠️ Construction du frontend..."
+            sh 'npm install'
+            echo "🔍 Liste des scripts disponibles dans package.json :"
+            sh 'npm run'
+            sh 'npm run build'
         }
+    }
+}
 
       /*  stage('Deploy Docker Image to Nexus') {
             steps {
