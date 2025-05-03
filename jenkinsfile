@@ -21,7 +21,7 @@ pipeline {
                     echo "📥 Clonage du Frontend..."
                     sh "git clone -b dashboard ${FRONTEND_REPO} frontend"
                     echo "🔍 Vérification du répertoire frontend/projectmanagement..."
-                    sh "ls -R /var/lib/jenkins/workspace/PipelinePI_finaldocker/frontend"
+                    sh "ls -R /var/lib/jenkins/workspace/PipelinePi_finaldocker/frontend"
                 }
             }
         }
