@@ -55,7 +55,7 @@ stage('SonarQube Analysis') {
     steps {
         script {
             def scannerHome = tool 'sonarqube'
-            def exclusions = "**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/utils/**,src/controllers/**,src/routes/**,src/middleware/**,src/server.js"
+            def exclusions = "**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**"
             withSonarQubeEnv('sonarqube') {
                 dir('backend') {
                     echo "🚀 Analyse SonarQube..."
@@ -121,7 +121,7 @@ stage('SonarQube Analysis') {
 
         stage('Build Frontend') {
     steps {
-        dir('frontend') { // Changement ici : enlever /projectmanagement
+        dir('frontend') { 
             echo "🛠️ Construction du frontend..."
             sh 'npm install'
             echo "🔍 Liste des scripts disponibles dans package.json :"
