@@ -19,7 +19,7 @@ pipeline {
                     echo "📥 Clonage du Backend..."
                     sh "git clone -b finaldocker ${BACKEND_REPO} backend"
                     echo "📥 Clonage du Frontend..."
-                    sh "git clone -b dashboard ${FRONTEND_REPO} frontend"
+                    sh "git clone -b finaldocker ${FRONTEND_REPO} frontend"
                     echo "🔍 Vérification du répertoire backend..."
                     sh "ls -l backend"
                     echo "🔍 Vérification du répertoire frontend/projectmanagement..."
@@ -93,7 +93,7 @@ stage('SonarQube Analysis') {
         }
     }
 }
-/* stage('Unit Test Backend') {
+/* KHALIL stage('Unit Test Backend') {
             steps {
                 dir('backend') {
                     sh 'npm install --save-dev jest-junit'
@@ -104,7 +104,7 @@ stage('SonarQube Analysis') {
             }
         }*/
      
-                /*stage('Unit Test Backend') {
+                /* RANIM stage('Unit Test Backend') {
             steps {
                 dir('backend') {
                     sh 'npm install --save-dev jest-junit'
@@ -119,9 +119,9 @@ stage('SonarQube Analysis') {
         }*/
 
 
-        stage('Build Frontend') {
+       stage('Build Frontend') {
     steps {
-        dir('frontend') { // Changement ici : enlever /projectmanagement
+        dir('frontend/projectmanagement') {
             echo "🛠️ Construction du frontend..."
             sh 'npm install'
             echo "🔍 Liste des scripts disponibles dans package.json :"
