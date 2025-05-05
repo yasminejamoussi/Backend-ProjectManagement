@@ -267,14 +267,25 @@ exports.createProject = async (req, res) => {
 exports.getAllProjects = async (req, res) => {
   try {
     // Étape 1 : Extraire les paramètres de la requête
-    const { status, startDate, endDate, projectManager, sortBy, order } = req.query;
+    const { status, startDate, endDate, projectManager, teamMembers, sortBy, order } = req.query;
     console.log("Paramètres reçus :", req.query);
     let filter = {};
 
-    // Étape 2 : Construire les filtres (sans filtrer par "status" pour l'instant)
-    if (projectManager) filter.projectManager = projectManager;
+    // Étape 2 : Construire les filtres
+    if (projectManager || teamMembers) {
+      const orConditions = [];
+      if (projectManager) {
+        orConditions.push({ projectManager: projectManager });
+      }
+      if (teamMembers) {
+        orConditions.push({ teamMembers: teamMembers });
+      }
+      filter.$or = orConditions;
+    }
     if (startDate) filter.startDate = { ...filter.startDate, $gte: new Date(startDate) };
     if (endDate) filter.endDate = { ...filter.endDate, $lte: new Date(endDate) };
+
+    console.log("Filtre MongoDB appliqué :", filter);
 
     // Étape 3 : Récupérer tous les projets
     let projects = await Project.find(filter)
@@ -329,7 +340,7 @@ exports.getAllProjects = async (req, res) => {
     console.log("📋 Projets retournés :", projects.map(project => ({
       id: project._id,
       name: project.name,
-      status: project.status, // Log du statut calculé
+      status: project.status,
       projectManager: project.projectManager ? {
         name: `${project.projectManager.firstname} ${project.projectManager.lastname}`,
         email: project.projectManager.email,
@@ -350,6 +361,7 @@ exports.getAllProjects = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 exports.getProjectById = async (req, res) => {
   try {
     const project = await Project.findById(req.params.id)
@@ -792,5 +804,130 @@ exports.getProjectsWithDetails = async (req, res) => {
   } catch (error) {
     console.error("Erreur lors de la récupération des projets avec détails :", error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getBestProjectManager = async (req, res) => {
+  try {
+    console.log('Request received for best project manager:', req.params, req.query); // Debug log
+
+    // Récupérer le rôle "Project Manager"
+    const projectManagerRole = await Role.findOne({ name: 'Project Manager' });
+    if (!projectManagerRole) {
+      console.error("Project Manager role not found in the database.");
+      return res.status(404).json({ message: "Project Manager role not found" });
+    }
+
+    // Récupérer tous les utilisateurs avec le rôle Project Manager
+    const projectManagers = await User.find({ role: projectManagerRole._id })
+      .populate({
+        path: 'role',
+        select: 'name',
+        model: Role
+      })
+      .select('firstname lastname email profileImage _id')
+      .lean();
+
+    if (!projectManagers || projectManagers.length === 0) {
+      console.log("No project managers found in the database.");
+      return res.status(404).json({ message: "No project managers found" });
+    }
+
+    console.log("Project managers found:", projectManagers);
+
+    const results = await Promise.all(projectManagers.map(async (pm) => {
+      try {
+        if (!pm._id) {
+          console.error('Invalid project manager _id:', pm);
+          return null;
+        }
+
+        // Compter les projets gérés
+        const managedProjects = await Project.countDocuments({ projectManager: pm._id });
+        const allProjects = await Project.find({ projectManager: pm._id })
+          .populate({
+            path: 'tasks',
+            model: Task
+          })
+          .lean();
+
+        // Calculer les projets en risque de retard et le taux de complétion
+        let atRiskCount = 0;
+        let completedCount = 0;
+        for (const project of allProjects) {
+          if (!project) {
+            console.warn(`Project is null for project manager ${pm._id}`);
+            continue; // Skip if project is null
+          }
+
+          try {
+            const delayPrediction = predictDelay(project);
+            if (delayPrediction && (delayPrediction.delayDays > 0 || delayPrediction.riskOfDelay === 'Oui')) {
+              atRiskCount++;
+            }
+          } catch (error) {
+            console.error(`Error in predictDelay for project ${project._id}:`, error.message);
+            continue; // Skip this project if predictDelay fails
+          }
+
+          if (project.status === 'Completed') {
+            completedCount++;
+          }
+        }
+
+        const totalProjects = allProjects.length || 1; // Avoid division by zero
+        const atRiskPercentage = totalProjects > 0 ? (atRiskCount / totalProjects) * 100 : 0;
+        const completionRate = totalProjects > 0 ? (completedCount / totalProjects) * 100 : 0;
+
+        // Score global (pondération : 40% complétion, 30% risque, 30% nombre de projets)
+        const score = (
+          (completionRate * 0.4) +
+          ((100 - atRiskPercentage) * 0.3) +
+          ((managedProjects / totalProjects) * 100 * 0.3)
+        ).toFixed(2);
+
+        return {
+          userId: pm._id.toString(),
+          firstname: pm.firstname || 'Unknown',
+          lastname: pm.lastname || 'User',
+          email: pm.email || 'N/A',
+          profileImage: pm.profileImage || null,
+          managedProjectsCount: managedProjects || 0,
+          atRiskPercentage: atRiskPercentage.toFixed(2),
+          completionRate: completionRate.toFixed(2),
+          score: parseFloat(score) || 0
+        };
+      } catch (error) {
+        console.error(`Error processing project manager ${pm._id}:`, error.message);
+        return null; // Skip this project manager if there's an error
+      }
+    }));
+
+    // Filtrer les résultats pour enlever les null (en cas d'erreur dans le map)
+    const validResults = results.filter(result => result !== null);
+
+    if (validResults.length === 0) {
+      console.log("No valid project manager data found after processing.");
+      return res.status(404).json({ message: "No valid project manager data found" });
+    }
+
+    // Trier par score décroissant
+    validResults.sort((a, b) => b.score - a.score);
+    const bestPM = validResults[0] || null;
+
+    console.log("Best project manager:", bestPM);
+
+    res.json({
+      bestProjectManager: bestPM,
+      metrics: {
+        managedProjectsCount: bestPM?.managedProjectsCount || 0,
+        atRiskPercentage: bestPM?.atRiskPercentage || 0,
+        completionRate: bestPM?.completionRate || 0,
+        score: bestPM?.score || 0
+      }
+    });
+  } catch (error) {
+    console.error("Detailed error in getBestProjectManager:", error.message, error.stack);
+    res.status(500).json({ error: "Failed to fetch best project manager", details: error.message });
   }
 };

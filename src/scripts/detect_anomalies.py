@@ -1,15 +1,33 @@
-import pandas as pd
 from pymongo import MongoClient
-from sklearn.ensemble import IsolationForest
 from datetime import datetime, timedelta
 import sys
 import json
 import traceback
+from bson import ObjectId
 
 try:
-    # Rediriger les logs vers stderr
     def log(message):
         print(message, file=sys.stderr)
+
+    # Helper function to serialize MongoDB documents
+    def serialize_doc(doc):
+        if not doc:
+            return {}
+        result = {}
+        for k, v in doc.items():
+            if k == 'password':  # Skip password field
+                continue
+            if isinstance(v, ObjectId):
+                result[k] = str(v)
+            elif isinstance(v, datetime):
+                result[k] = v.isoformat()
+            elif isinstance(v, dict):
+                result[k] = serialize_doc(v)
+            elif isinstance(v, list):
+                result[k] = [serialize_doc(item) if isinstance(item, dict) else str(item) if isinstance(item, ObjectId) else item for item in v]
+            else:
+                result[k] = v
+        return result
 
     log("Connexion à MongoDB...")
     client = MongoClient("mongodb://projectmanagement:project123@mongo:27017/projectmanagement?authSource=admin")
@@ -18,88 +36,76 @@ try:
     users_collection = db["users"]
     log("Connexion réussie.")
 
-    def detect_anomalies(user_email):
-        log(f"Début de la détection d'anomalies pour {user_email}")
-        data = list(collection.find({"email": user_email}, {"_id": 0, "email": 1, "ip": 1, "timestamp": 1, "success": 1}))
-        log(f"Données récupérées : {len(data)} entrées")
+    # Créer un index unique sur le champ email
+    try:
+        users_collection.create_index([("email", 1)], unique=True)
+        log("Index unique créé sur le champ 'email'.")
+    except Exception as e:
+        log(f"Erreur lors de la création de l'index: {str(e)}")
 
-        if len(data) < 3:  # Seuil minimal de données pour éviter les faux positifs
-            log("Pas assez de données pour cet utilisateur (moins de 3 tentatives), pas d'anomalie.")
-            return "no_anomaly"
+    def handle_failed_login(user_email):
+        user_email = user_email.lower().strip()
+        log(f"Traitement de l'échec de connexion pour {user_email}")
 
-        df = pd.DataFrame(data)
-        log(f"DataFrame créé : {df.shape}")
+        # Récupérer l'utilisateur avant mise à jour
+        user_before = users_collection.find_one({"email": user_email})
+        anomaly_count_before = user_before.get("anomaly_count", 0) if user_before else 0
+        user_before_doc = serialize_doc(user_before)
+        log(f"Avant incrément: anomaly_count={anomaly_count_before}, user_id={str(user_before.get('_id')) if user_before else None}, user_doc={json.dumps(user_before_doc)}")
 
-        df["timestamp"] = df["timestamp"].apply(lambda x: x.timestamp())
-        log(f"Timestamps convertis")
+        # Incrémenter anomaly_count
+        result = users_collection.update_one(
+            {"email": user_email},
+            {"$inc": {"anomaly_count": 1}},
+            upsert=True
+        )
+        log(f"anomaly_count incrémenté: matched={result.matched_count}, modified={result.modified_count}")
 
-        if "success" not in df.columns:
-            log("Colonne 'success' absente, initialisation à 0")
-            df["success"] = 0
-
-        # Ajouter une caractéristique : nombre d'échecs consécutifs
-        df["failed_streak"] = 0
-        streak = 0
-        for i in range(len(df)):
-            if df.iloc[i]["success"] == 0:
-                streak += 1
-                df.iloc[i, df.columns.get_loc("failed_streak")] = streak
-            else:
-                streak = 0
-                df.iloc[i, df.columns.get_loc("failed_streak")] = streak
-
-        # Ajouter une caractéristique basée sur l'IP (convertir en valeur numérique simple pour l'exemple)
-        df["ip_numeric"] = df["ip"].apply(lambda x: sum(bytearray(x.encode())))
-
-        # Utiliser plus de caractéristiques pour la détection
-        model = IsolationForest(contamination=0.05, random_state=42)  # Réduit de 0.1 à 0.05
-        df["anomaly"] = model.fit_predict(df[["timestamp", "success", "failed_streak", "ip_numeric"]])
-        log(f"Anomalies détectées : {len(df[df['anomaly'] == -1])}")
-
-        anomaly_count = 0
-        for index, row in df[df["anomaly"] == -1].iterrows():
-            collection.update_one(
-                {"email": row["email"], "timestamp": datetime.fromtimestamp(row["timestamp"])},
-                {"$set": {"anomaly": True}}
-            )
-            anomaly_count += 1
-
-        log(f"Nombre total d'anomalies : {anomaly_count}")
-
-        # Ajouter un log pour voir les détails des anomalies
-        log(f"Détails des anomalies : {df[df['anomaly'] == -1][['timestamp', 'success', 'failed_streak', 'ip_numeric']].to_dict()}")
-
-        users_collection.update_one({"email": user_email}, {"$inc": {"anomaly_count": anomaly_count}})
-
+        # Vérifier si le seuil est atteint
         user = users_collection.find_one({"email": user_email})
-        log(f"Utilisateur trouvé : {user.get('email')}")
-        if user and user.get("anomaly_count", 0) >= 5:  # Changement de 3 à 5
+        anomaly_count = user.get("anomaly_count", 0) if user else 0
+        user_doc = serialize_doc(user)
+        log(f"Utilisateur trouvé : {user.get('email') if user else None}, anomaly_count={anomaly_count}, user_id={str(user.get('_id')) if user else None}, user_doc={json.dumps(user_doc)}")
+
+        if anomaly_count >= 3:
             log(f"Utilisateur {user_email} bloqué pour trop d'anomalies.")
+            blocked_until = datetime.now() + timedelta(minutes=1)
             users_collection.update_one(
                 {"email": user_email},
-                {"$set": {"blocked": True, "blocked_until": datetime.now() + timedelta(minutes=5)}}  # Changement de 1 à 5 minutes
+                {"$set": {"blocked": True, "blocked_until": blocked_until}}
             )
             return "blocked"
 
         return "no_anomaly"
 
     def attempt_login(user_email, ip, success):
+        user_email = user_email.lower().strip()
         log(f"Tentative de connexion pour {user_email}, IP: {ip}, Success: {success}")
+
         user = users_collection.find_one({"email": user_email})
+
+        # Vérifier si l'utilisateur est bloqué
         if user and user.get("blocked", False):
             blocked_until = user.get("blocked_until")
-            if blocked_until and datetime.now() < blocked_until:
+            log(f"blocked_until: {blocked_until}, type: {type(blocked_until)}, current time: {datetime.now()}")
+            if blocked_until and isinstance(blocked_until, datetime) and datetime.now() < blocked_until:
                 log(f"Utilisateur {user_email} est bloqué jusqu'à {blocked_until}.")
                 return "blocked"
             else:
-                # Réinitialiser complètement lors du déblocage
-                users_collection.update_one(
+                log(f"Utilisateur {user_email} débloqué, réinitialisation de l'état.")
+                result = users_collection.update_one(
                     {"email": user_email},
-                    {"$set": {"blocked": False, "blocked_until": None, "anomaly_count": 0}}
+                    {
+                        "$set": {
+                            "blocked": False,
+                            "blocked_until": None,
+                            "anomaly_count": 0
+                        }
+                    }
                 )
-                collection.delete_many({"email": user_email, "success": False})
-                log(f"Utilisateur {user_email} débloqué et historique d'échecs supprimé.")
+                log(f"Update result: matched={result.matched_count}, modified={result.modified_count}")
 
+        # Enregistrer la tentative de connexion
         login_attempt = {
             "email": user_email,
             "ip": ip,
@@ -107,32 +113,39 @@ try:
             "success": success
         }
         collection.insert_one(login_attempt)
-        log(f"Tentative enregistrée : {login_attempt}")
+        login_attempt_doc = serialize_doc(login_attempt)
+        log(f"Tentative enregistrée : {json.dumps(login_attempt_doc)}")
 
-        # Ne pas exécuter la détection d'anomalies si la connexion réussit
+        # Connexion réussie
         if success:
-            log(f"Connexion réussie pour {user_email}, réinitialisation des anomalies.")
-            users_collection.update_one(
+            log(f"Connexion réussie pour {user_email}, réinitialisation du compteur d'anomalies.")
+            result = users_collection.update_one(
                 {"email": user_email},
                 {"$set": {"anomaly_count": 0}}
             )
+            log(f"anomaly_count réinitialisé à 0: matched={result.matched_count}, modified={result.modified_count}")
             collection.delete_many({"email": user_email, "success": False})
             return "no_anomaly"
 
-        return detect_anomalies(user_email)
+        # Connexion échouée
+        else:
+            log(f"Échec de connexion, appel de handle_failed_login pour {user_email}")
+            return handle_failed_login(user_email)
 
+    # Exécution du script
     if __name__ == "__main__":
         log("Démarrage du script Python...")
         user_email = sys.argv[1]
         ip = sys.argv[2]
-        success = sys.argv[3] == "True"
+        success = sys.argv[3].lower() == "true"
+        log(f"Arguments reçus: user_email={user_email}, ip={ip}, success={success}")
 
         result = attempt_login(user_email, ip, success)
-        print(json.dumps({"status": result}))  # Seule sortie sur stdout
+        print(json.dumps({"status": result}))
         sys.exit(0)
 
 except Exception as e:
-    print(json.dumps({"error": str(e)}))  # Sortie JSON pour les erreurs
+    print(json.dumps({"error": str(e)}))
     log(f"Erreur dans le script Python: {str(e)}")
     traceback.print_exc(file=sys.stderr)
     sys.exit(1)

@@ -1,191 +1,179 @@
-const Role = require("../models/Role");
-const User = require("../models/User"); 
+const Role = require('../models/Role');
+const User = require('../models/User');
+const sendRoleEmail = require('../utils/roleEmail');
 
-const roles = [
-  { name: "Admin", permissions: ["create", "read", "update", "delete"] },
-  { name: "Project Manager", permissions: ["create", "read", "update"] },
-  { name: "Team Leader", permissions: ["read", "update"] },
-  { name: "Team Member", permissions: ["read"] },
-  { name: "Guest", permissions: [] },
-];
-
-// Fonction pour initialiser les rôles
-exports.initializeRoles = async () => {
-  try {
-    for (const roleData of roles) {
-      await Role.findOneAndUpdate(
-        { name: roleData.name }, 
-        roleData, 
-        { upsert: true, new: true } 
-      );
-    }
-    console.log("Rôles initialisés avec succès");
-  } catch (error) {
-    console.error("Erreur lors de l'initialisation des rôles :", error);
-  }
-};
-// Récupérer tous les rôles
 exports.getRoles = async (req, res) => {
   try {
-    console.log("Fetching roles...");
-
-    const roles = await Role.find().populate('users', 'firstname lastname -_id');
-    console.log('Fetched roles:', roles);  // Log the roles to see if they are fetched correctly
-    
-    if (!roles || roles.length === 0) {
-      return res.status(404).json({ message: "Aucun rôle trouvé" });
-    }
-
+    const roles = await Role.find().populate('users', 'email firstname lastname');
     res.status(200).json(roles);
   } catch (error) {
-    console.error("Erreur lors de la récupération des rôles:", error);
-    res.status(500).json({ message: "Erreur serveur lors de la récupération des rôles." });
+    console.error('Error fetching roles:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Créer un rôle
 exports.createRole = async (req, res) => {
-  const { name, permissions } = req.body;
-
-  if (!name || name.trim() === "") {
-    return res.status(400).json({ message: "Le nom du rôle est requis." });
-  }
-
-  console.log("Création du rôle avec ces données :", { name, permissions });
-
   try {
-    const newRole = new Role({
-      name: name,
-      permissions: permissions || [],
-      /*users: users || [],*/
-    });
-
-    await newRole.save();
-    res.status(201).json({ message: "Rôle créé avec succès", role: newRole });
-  } catch (error) {
-    console.error("Erreur lors de la création du rôle:", error);
-    res.status(500).json({ message: "Erreur serveur lors de la création du rôle", error: error.message });
-  }
-};
-
-// Mettre à jour un rôle
-exports.updateRole = async (req, res) => {
-  const { roleId } = req.params;
-  const { name, permissions } = req.body;
-
-  try {
-    const role = await Role.findById(roleId);
-    if (!role) {
-      return res.status(404).json({ message: "Rôle non trouvé" });
+    const { name, permissions } = req.body;
+    if (!name || !['Admin', 'Project Manager', 'Team Leader', 'Team Member', 'Guest'].includes(name)) {
+      return res.status(400).json({ message: 'Invalid role name' });
     }
-
-    role.name = name || role.name;
-    role.permissions = permissions || role.permissions;
-
+    const existingRole = await Role.findOne({ name });
+    if (existingRole) {
+      return res.status(400).json({ message: 'Role already exists' });
+    }
+    const role = new Role({ name, permissions });
     await role.save();
-    res.status(200).json({ message: "Rôle mis à jour avec succès", role });
+    res.status(201).json({ message: 'Role created successfully', role });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error creating role:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
-// Supprimer un rôle
-exports.deleteRole = async (req, res) => {
-  const { roleId } = req.params;
 
+exports.updateRole = async (req, res) => {
   try {
+    const { roleId } = req.params;
+    const { name, permissions } = req.body;
+    if (name && !['Admin', 'Project Manager', 'Team Leader', 'Team Member', 'Guest'].includes(name)) {
+      return res.status(400).json({ message: 'Invalid role name' });
+    }
     const role = await Role.findById(roleId);
     if (!role) {
-      return res.status(404).json({ message: "Rôle non trouvé" });
+      return res.status(404).json({ message: 'Role not found' });
     }
+    if (name) role.name = name;
+    if (permissions) role.permissions = permissions;
+    await role.save();
+    res.status(200).json({ message: 'Role updated successfully', role });
+  } catch (error) {
+    console.error('Error updating role:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
-    // Retirer ce rôle de tous les utilisateurs qui l'ont
-    await User.updateMany({ role: roleId }, { role: null });
-
+exports.deleteRole = async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    const role = await Role.findById(roleId);
+    if (!role) {
+      return res.status(404).json({ message: 'Role not found' });
+    }
+    if (role.name === 'Guest') {
+      return res.status(400).json({ message: 'Cannot delete Guest role' });
+    }
+    const guestRole = await Role.findOne({ name: 'Guest' });
+    await User.updateMany({ role: roleId }, { $set: { role: guestRole._id } });
     await Role.findByIdAndDelete(roleId);
-
-    res.status(200).json({ message: "Rôle supprimé avec succès" });
+    res.status(200).json({ message: 'Role deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error deleting role:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
+
 exports.assignRoleToUser = async (req, res) => {
-  const { roleName, userId } = req.body; 
-
   try {
-    // 🔍 Trouver le rôle par son nom pour récupérer son ID
+    const { roleName, userId } = req.body;
+    console.log('assignRoleToUser called with:', { roleName, userId });
+
+    if (!roleName || !userId) {
+      console.error('Missing roleName or userId:', { roleName, userId });
+      return res.status(400).json({ message: 'Role name and user ID are required' });
+    }
+
+    const validRoles = ['Admin', 'Project Manager', 'Team Leader', 'Team Member', 'Guest'];
+    if (!validRoles.includes(roleName)) {
+      console.error('Invalid role name:', roleName);
+      return res.status(400).json({ message: `Invalid role name. Must be one of: ${validRoles.join(', ')}` });
+    }
+
+    const user = await User.findById(userId).populate('role');
+    if (!user) {
+      console.error('User not found:', userId);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     const role = await Role.findOne({ name: roleName });
     if (!role) {
-      return res.status(404).json({ message: "Rôle non trouvé" });
+      console.error('Role not found:', roleName);
+      return res.status(404).json({ message: `Role ${roleName} not found` });
     }
 
-    // 🔍 Trouver l'utilisateur
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
+    if (user.role && user.role.name === roleName) {
+      console.log(`User ${user.email} already has role ${roleName}`);
+      return res.status(200).json({ message: 'User already has this role', user, role });
     }
 
-    // Retirer l'utilisateur de son ancien rôle s'il en a un
-    if (user.role) {
-      const oldRole = await Role.findById(user.role);
-      if (oldRole) {
-        oldRole.users = oldRole.users.filter(id => id.toString() !== userId.toString());
-        await oldRole.save();
-      }
+    // Update role assignments
+    const previousRole = await Role.findById(user.role);
+    if (previousRole) {
+      previousRole.users = previousRole.users.filter(
+        (id) => id.toString() !== userId.toString()
+      );
+      await previousRole.save();
     }
 
-    // ✅ Mettre à jour `user.role` avec l'ObjectId du rôle
     user.role = role._id;
-    await user.save();
-
-    // ✅ Ajouter l'utilisateur dans le tableau `users` du rôle
     if (!role.users.includes(userId)) {
       role.users.push(userId);
-      await role.save();
     }
 
-    res.status(200).json({ message: "Rôle attribué avec succès", user });
+    // Save changes before sending email
+    await user.save();
+    await role.save();
+
+    console.log(`User role updated: ${user.email} to ${roleName}`);
+
+    // Send email
+    try {
+      const subject = 'Your New Role Assignment in Orkestra';
+      const text = `Dear ${user.firstname || 'User'},\n\nYou have been assigned the role of ${roleName} in Orkestra. Enjoy your new privileges!\n\nBest regards,\nThe Orkestra Team`;
+      const html = `
+        <h2>Welcome to Your New Role!</h2>
+        <p>Dear ${user.firstname || 'User'},</p>
+        <p>You have been assigned the role of <strong>${roleName}</strong> in Orkestra.</p>
+        <p>Enjoy your new privileges and explore the platform!</p>
+        <p>Best regards,<br>The Orkestra Team</p>
+      `;
+      await sendRoleEmail(user.email, subject, text, html, userId.toString());
+      console.log(`Role email sent to ${user.email} for role ${roleName}`);
+    } catch (emailError) {
+      console.error('Error sending role email:', emailError);
+      return res.status(200).json({
+        message: 'Role assigned successfully, but failed to send email',
+        user,
+        role,
+        emailError: emailError.message,
+      });
+    }
+
+    res.status(200).json({ message: 'Role assigned successfully', user, role });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error assigning role:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-/*exports.assignRoleToUser = async (req, res) => {
-  const { roleName, userId } = req.body; 
-
+exports.initializeRoles = async () => {
   try {
-    // Trouver le rôle par son nom
-    const role = await Role.findOne({ name: roleName });
-    if (!role) {
-      return res.status(404).json({ message: "Rôle non trouvé" });
-    }
+    const roles = [
+      { name: 'Admin', permissions: ['all'] },
+      { name: 'Project Manager', permissions: ['manage_projects', 'assign_tasks'] },
+      { name: 'Team Leader', permissions: ['manage_tasks', 'view_reports'] },
+      { name: 'Team Member', permissions: ['complete_tasks'] },
+      { name: 'Guest', permissions: ['view_limited'] },
+    ];
 
-    // Trouver l'utilisateur
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
-    }
-
-    // Si l'utilisateur a déjà un rôle, le retirer de l'ancien rôle
-    if (user.role) {
-      const oldRole = await Role.findById(user.role);
-      if (oldRole) {
-        oldRole.users = oldRole.users.filter(id => id.toString() !== userId.toString());
-        await oldRole.save();
+    for (const roleData of roles) {
+      const existingRole = await Role.findOne({ name: roleData.name });
+      if (!existingRole) {
+        const role = new Role(roleData);
+        await role.save();
+        console.log(`Role ${roleData.name} initialized`);
       }
     }
-
-    // Mettre à jour le rôle de l'utilisateur
-    user.role = role._id;
-    await user.save();
-
-    // Ajouter l'utilisateur au tableau `users` du nouveau rôle
-    if (!role.users.includes(userId)) {
-      role.users.push(userId);
-      await role.save();
-    }
-
-    res.status(200).json({ message: "Rôle attribué avec succès", user });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error initializing roles:', error);
   }
-};*/
+};

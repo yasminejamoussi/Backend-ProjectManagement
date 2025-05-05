@@ -19,14 +19,14 @@ const UserSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId, 
       ref: 'Role',
       default: async () => {
-        const guestRole = await Role.findOne({ name: 'Admin' });
+        const guestRole = await Role.findOne({ name: 'Guest' });
         return guestRole ? guestRole._id : null;
       } 
     },
     resetCode: { type: String },
     resetCodeExpires: { type: Date },
     faceLabel: { type: String },
-    isTwoFactorEnabled: { type: Boolean, default: false },
+    isTwoFactorEnabled: { type: Boolean, default: true },
     twoFactorSecret: { type: String },
     twoFactorTempSecret: { type: String },
     profileImage: { type: String, default: "" },

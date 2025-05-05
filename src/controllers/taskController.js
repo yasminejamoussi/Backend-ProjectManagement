@@ -53,16 +53,29 @@ exports.prioritizeTask = async (req, res) => {
 // Read All Tasks
 exports.getAllTasks = async (req, res) => {
   try {
-    const { projectId } = req.query;
+    const { projectId, assignedTo } = req.query;
     let filter = {};
     if (projectId) {
-      filter.project = projectId;
+      // Handle single projectId or array of projectIds
+      filter.project = Array.isArray(projectId) ? { $in: projectId } : projectId;
     }
+    if (assignedTo) {
+      filter.assignedTo = assignedTo;
+    }
+
+    console.log("Filtre MongoDB appliqué pour tâches :", filter);
 
     const tasks = await Task.find(filter)
       .populate("project", "name")
       .populate("assignedTo", "firstname lastname email")
       .populate("createdBy", "firstname lastname email");
+
+    console.log("Tâches retournées :", tasks.map(task => ({
+      id: task._id,
+      title: task.title,
+      project: task.project?.name,
+      assignedTo: task.assignedTo.map(user => `${user.firstname} ${user.lastname}`)
+    })));
 
     res.json(tasks);
   } catch (error) {

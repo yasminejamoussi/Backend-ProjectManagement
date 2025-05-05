@@ -8,6 +8,11 @@ const logActivity = require('../middleware/logActivity');
 router.get("/cluster-users", projectController.clusterUsers);
 router.post("/", logActivity,projectController.createProject);
 router.get("/", projectController.getAllProjects);
+router.get("/best-project-manager", authMiddleware, (req, res, next) => {
+  console.log("Routing to getBestProjectManager for /best-project-manager");
+  projectController.getBestProjectManager(req, res, next);
+});
+
 router.get("/:id", projectController.getProjectById); 
 router.put("/:id", logActivity ,projectController.updateProject);
 router.get('/:id/predict-delay', projectController.predictDelay);
@@ -15,7 +20,6 @@ router.delete("/:id",logActivity, projectController.deleteProject);
 router.get('/reports/overview', authMiddleware, ReportController.generateOverviewReport);
 router.get("/:id/extract-skills", projectController.extractSkillsFromDeliverables);
 router.get("/:id/match-users", projectController.matchUsersToProject);
-
 const { predictDuration } = require("../utils/PrjctDeadlinePrediction");
 router.get('/with-details', projectController.getProjectsWithDetails);
 //Project-deadline-prediction
