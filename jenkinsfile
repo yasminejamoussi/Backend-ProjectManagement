@@ -54,7 +54,7 @@ pipeline {
         dir('backend') {
             sh 'npm install --save-dev jest-junit'
             echo "🔍 Attente de la disponibilité de mongo-test..."
-            sh 'until nc -z 192.168.1.16 27018; do echo "En attente de mongo-test..."; sleep 5; done'
+            sh 'until nc -z 192.168.1.18 27018; do echo "En attente de mongo-test..."; sleep 5; done'
             echo "✅ Mongo-test est accessible !"
             timeout(time: 30, unit: 'MINUTES') {
                 // Run tests with coverage
