@@ -20,10 +20,7 @@ pipeline {
                     sh "git clone -b finaldocker ${BACKEND_REPO} backend"
                     echo "📥 Clonage du Frontend..."
                     sh "git clone -b finaldocker ${FRONTEND_REPO} frontend"
-                    echo "🔍 Vérification du répertoire backend..."
-                    sh "ls -l backend"
-                    echo "🔍 Vérification du répertoire frontend/projectmanagement..."
-                    sh "ls -R /var/lib/jenkins/workspace/PipelinePi_finaldocker/frontend"
+                   
                 }
             }
         }
