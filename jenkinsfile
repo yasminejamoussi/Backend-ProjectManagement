@@ -7,8 +7,11 @@ pipeline {
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
         SONAR_TOKEN = credentials('sonarqb')
         NEXUS_URL = '192.168.33.10:8081'
-        NEXUS_REPOSITORY = 'dockr-repo'
+        //NEXUS_REPOSITORY = 'dockr-repo'
+        NEXUS_REPOSITORY = 'npm-repo' // Changé pour le repository npm
         NEXUS_CREDENTIAL_ID = 'nexus'
+         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials' // Pour Docker Hub
+
     }
 
    stages {
@@ -127,26 +130,49 @@ stage('SonarQube Analysis') {
         }
     }
 }
-
-       /*stage('Deploy Docker Image to Nexus') {
+   stage('Publish to Nexus') {
             steps {
                 script {
-                    echo "📤 Déploiement de l'image backend vers Nexus..."
-                    dir('backend') {
-                        def imageName = "projectmanagement"
-                        def imageTag = "${env.BUILD_NUMBER}"
-                        def fullImageName = "${imageName}:${imageTag}"
-                        
-                        sh "docker build -t ${fullImageName} ."
-                        docker.withRegistry("http://${NEXUS_URL}", NEXUS_CREDENTIAL_ID) {
-                            sh "docker tag ${fullImageName} ${NEXUS_URL}/${imageName}:${imageTag}"
-                            sh "docker push ${NEXUS_URL}/${imageName}:${imageTag}"
+                    echo "📤 Publication des packages npm vers Nexus..."
+                    withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIAL_ID, usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
+                        // Générer un token d'authentification pour npm
+                        sh '''
+                            echo "//192.168.33.10:8081/repository/npm-repo/:_auth=$(echo -n "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" | base64)" >> ~/.npmrc
+                        '''
+
+                        // Backend
+                        dir('backend') {
+                            sh 'npm version patch --no-git-tag-version' // Incrémenter la version
+                            sh 'npm publish --registry http://192.168.33.10:8081/repository/npm-repo/'
+                        }
+
+                        // Frontend
+                        dir('frontend') {
+                            sh 'npm version patch --no-git-tag-version' // Incrémenter la version
+                            sh 'npm publish --registry http://192.168.33.10:8081/repository/npm-repo/'
                         }
                     }
                 }
             }
-        }*/
-        stage('Deploy Docker Image to Nexus') {
+        }
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "🛠️ Construction de l'image backend..."
+                    dir('backend') {
+                        def imageName = "projectmanagement"
+                        def imageTag = "${env.BUILD_NUMBER}"
+                        def fullImageName = "${imageName}:${imageTag}"
+
+                        // Build de l'image localement
+                        sh "docker build -t ${fullImageName} ."
+                    }
+                }
+            }
+        }
+
+      
+      /*stage('Deploy Docker Image to Nexus') {
     steps {
         script {
             echo "📤 Déploiement de l'image backend vers Nexus..."
@@ -154,17 +180,40 @@ stage('SonarQube Analysis') {
                 def imageName = "projectmanagement"
                 def imageTag = "${env.BUILD_NUMBER}"
                 def fullImageName = "${imageName}:${imageTag}"
-                def nexusDockerUrl = "${NEXUS_URL.replace('8081', '8083')}" // Force l'utilisation de 8083
+                def nexusDockerUrl = "${NEXUS_URL}" // Utilise 8081 directement
 
+                // Build de l'image
                 sh "docker build -t ${fullImageName} ."
-                withDockerRegistry([url: "http://${nexusDockerUrl}", credentialsId: NEXUS_CREDENTIAL_ID, skipTlsVerify: true]) {
-                    sh "docker tag ${fullImageName} ${nexusDockerUrl.replace('http://', '')}/docker-repo/${imageName}:${imageTag}"
-                    sh "docker push ${nexusDockerUrl.replace('http://', '')}/docker-repo/${imageName}:${imageTag}"
+
+                // Login à Nexus avec credentials
+                withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIAL_ID, usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
+                    sh "echo \$NEXUS_PASSWORD | docker login -u \$NEXUS_USERNAME --password-stdin http://${nexusDockerUrl}"
+                    sh "docker tag ${fullImageName} ${nexusDockerUrl}/${NEXUS_REPOSITORY}/${imageName}:${imageTag}"
+                    sh "docker push ${nexusDockerUrl}/${NEXUS_REPOSITORY}/${imageName}:${imageTag}"
                 }
             }
         }
     }
-}
+}*/
+    stage('Publish Docker Image to Docker Hub') {
+            steps {
+                script {
+                    echo "📤 Publication de l'image vers Docker Hub..."
+                    dir('backend') {
+                        def imageName = "projectmanagement"
+                        def imageTag = "${env.BUILD_NUMBER}"
+                        def fullImageName = "${imageName}:${imageTag}"
+                        withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
+                            sh "echo \$DOCKERHUB_PASSWORD | docker login -u \$DOCKERHUB_USERNAME --password-stdin"
+                            sh "docker tag ${fullImageName} ${DOCKERHUB_USERNAME}/${imageName}:${imageTag}"
+                            sh "docker push ${DOCKERHUB_USERNAME}/${imageName}:${imageTag}"
+                            sh "docker tag ${fullImageName} ${DOCKERHUB_USERNAME}/${imageName}:latest"
+                            sh "docker push ${DOCKERHUB_USERNAME}/${imageName}:latest"
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Run Application') {
             steps {
