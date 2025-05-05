@@ -11,7 +11,7 @@ services:
       - "/app/node_modules"
     environment:
       - NODE_ENV=test
-      - TEST_MONGO_URI=mongodb://testuser:testpass@192.168.1.16:27018/testdb?authSource=admin
+      - TEST_MONGO_URI=mongodb://testuser:testpass@192.168.1.18:27018/testdb?authSource=admin
 
 
   web:
