@@ -128,7 +128,7 @@ stage('SonarQube Analysis') {
     }
 }
 
-       stage('Deploy Docker Image to Nexus') {
+       /*stage('Deploy Docker Image to Nexus') {
             steps {
                 script {
                     echo "📤 Déploiement de l'image backend vers Nexus..."
@@ -145,7 +145,26 @@ stage('SonarQube Analysis') {
                     }
                 }
             }
+        }*/
+        stage('Deploy Docker Image to Nexus') {
+    steps {
+        script {
+            echo "📤 Déploiement de l'image backend vers Nexus..."
+            dir('backend') {
+                def imageName = "projectmanagement"
+                def imageTag = "${env.BUILD_NUMBER}"
+                def fullImageName = "${imageName}:${imageTag}"
+                def nexusDockerUrl = "${NEXUS_URL}" // Utilise 8081 comme demandé
+
+                sh "docker build -t ${fullImageName} ."
+                withDockerRegistry([url: "http://${nexusDockerUrl}", credentialsId: NEXUS_CREDENTIAL_ID, skipTlsVerify: true]) {
+                    sh "docker tag ${fullImageName} ${nexusDockerUrl.replace('http://', '')}/docker-repo/${imageName}:${imageTag}"
+                    sh "docker push ${nexusDockerUrl.replace('http://', '')}/docker-repo/${imageName}:${imageTag}"
+                }
+            }
         }
+    }
+}
 
         stage('Run Application') {
             steps {
