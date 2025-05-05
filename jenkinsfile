@@ -20,9 +20,9 @@ pipeline {
             steps {
                 script {
                     echo "📥 Clonage du Backend..."
-                    sh "git clone -b finito ${BACKEND_REPO} backend"
+                    sh "git clone -b cicdfinal ${BACKEND_REPO} backend"
                     echo "📥 Clonage du Frontend..."
-                    sh "git clone -b finito ${FRONTEND_REPO} frontend"
+                    sh "git clone -b cicdfinal ${FRONTEND_REPO} frontend"
                    
                 }
             }
