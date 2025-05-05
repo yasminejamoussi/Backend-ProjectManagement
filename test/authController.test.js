@@ -21,23 +21,32 @@ describe("Auth Controller Tests", () => {
 
   beforeAll(async () => {
     process.env.NODE_ENV = "test";
+
+    const connectWithRetry = async (uri, maxAttempts = 5, delay = 5000) => {
+      let attempts = 0;
+      while (attempts < maxAttempts) {
+        try {
+          console.log(`🔄 Tentative ${attempts + 1} de connexion à MongoDB : ${uri}`);
+          await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+          console.log("✅ MongoDB connecté !");
+          return;
+        } catch (error) {
+          attempts++;
+          console.error(`❌ Échec de la tentative ${attempts} : ${error.message}`);
+          if (attempts === maxAttempts) {
+            throw new Error(`❌ Impossible de se connecter à MongoDB après ${maxAttempts} tentatives : ${error.message}`);
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    };
+
+    const mongoUri = process.env.TEST_MONGO_URI || "mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin";
+    console.log("📢 URI MongoDB :", mongoUri);
     if (mongoose.connection.readyState === 0) {
       console.log("🕐 Connexion à MongoDB...");
-      await mongoose.connect(mongoUri);
+      await connectWithRetry(mongoUri);
     }
-
-    let attempts = 0;
-    while (mongoose.connection.readyState !== 1 && attempts < 5) {
-      console.log(`🔄 Tentative ${attempts + 1} de connexion à MongoDB...`);
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      attempts++;
-    }
-
-    if (mongoose.connection.readyState !== 1) {
-      throw new Error("❌ Impossible de se connecter à MongoDB.");
-    }
-
-    console.log("✅ MongoDB connecté !");
     await User.deleteMany({});
   });
 
