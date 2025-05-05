@@ -1,0 +1,224 @@
+pipeline {
+    agent any 
+    
+
+    environment {
+        BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
+        FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
+        SONAR_TOKEN = credentials('sonarqb')
+        NEXUS_URL = '192.168.33.10:8081'
+        //NEXUS_REPOSITORY = 'dockr-repo'
+        NEXUS_REPOSITORY = 'npm-repo' // Changé pour le repository npm
+        NEXUS_CREDENTIAL_ID = 'nexus'
+         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials' // Pour Docker Hub
+
+    }
+
+   stages {
+     
+        stage('Checkout Code') {
+            steps {
+                script {
+                    echo "📥 Clonage du Backend..."
+                    sh "git clone -b finito ${BACKEND_REPO} backend"
+                    echo "📥 Clonage du Frontend..."
+                    sh "git clone -b finito ${FRONTEND_REPO} frontend"
+                   
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            parallel {
+                stage('Backend') {
+                    steps {
+                        dir('backend') {
+                            echo "📦 Installation des dépendances du backend..."
+                            sh 'npm install'
+                        }
+                    }
+                }
+                stage('Frontend') {
+                    steps {
+                        dir('frontend') {
+                            echo "📦 Installation des dépendances du frontend..."
+                            sh 'npm install'
+                        }
+                    }
+                }
+            }
+        }
+
+          stage('Unit Test Backend') {
+    steps {
+        dir('backend') {
+            sh 'npm install --save-dev jest-junit'
+            echo "🔍 Attente de la disponibilité de mongo-test..."
+            sh 'until nc -z 192.168.1.18 27018; do echo "En attente de mongo-test..."; sleep 5; done'
+            echo "✅ Mongo-test est accessible !"
+            timeout(time: 30, unit: 'MINUTES') {
+                // Run tests with coverage
+                sh 'docker-compose run --rm api npm test -- --coverage --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
+            }
+        }
+    }
+}
+
+stage('SonarQube Analysis') {
+    steps {
+        script {
+            def scannerHome = tool 'sonarqube'
+            def exclusions = "**/*.spec.js,**/node_modules/**,**/coverage/**,src/utils/**,src/controllers/**,src/routes/**,src/middleware/**,src/server.js"
+            withSonarQubeEnv('sonarqube') {
+                dir('backend') {
+                    echo "🚀 Analyse SonarQube..."
+                    timeout(time: 10, unit: 'MINUTES') {
+                        withEnv(["SONAR_LOGIN=${SONAR_TOKEN}"]) {
+                            sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                             -Dsonar.projectKey=ProjectManagementPI \
+                             -Dsonar.projectName=ProjectManagementPI \
+                             -Dsonar.sources=src \
+                             -Dsonar.language=js \
+                             -Dsonar.exclusions="${exclusions}" \
+                             -Dsonar.host.url=http://192.168.33.10:9000 \
+                             -Dsonar.login=${SONAR_LOGIN} \
+                             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                             -X || true
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+/* KHALIL stage('Unit Test Backend') {
+            steps {
+                dir('backend') {
+                    sh 'npm install --save-dev jest-junit'
+                    timeout(time: 10, unit: 'MINUTES') {
+                        sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
+                    }
+                }
+            }
+        }*/
+     
+                /* RANIM stage('Unit Test Backend') {
+            steps {
+                dir('backend') {
+                    sh 'npm install --save-dev jest-junit'
+                    echo "🔍 Attente de la disponibilité de mongo-test..."
+                    sh 'until nc -z 192.168.1.16 27018; do echo "En attente de mongo-test..."; sleep 5; done'
+                    echo "✅ Mongo-test est accessible !"
+                    timeout(time: 30, unit: 'MINUTES') { // Augmenter à 30 minutes pour plus de marge
+                        sh 'docker-compose run --rm api npm test'
+                    }
+                }
+            }
+        }*/
+
+
+       stage('Build Frontend') {
+    steps {
+        dir('frontend/projectmanagement') {
+            echo "🛠️ Construction du frontend..."
+            sh 'npm install'
+            echo "🔍 Liste des scripts disponibles dans package.json :"
+            sh 'npm run'
+            sh 'npm run build'
+        }
+    }
+}
+   stage('Publish to Nexus') {
+            steps {
+                script {
+                    echo "📤 Publication des packages npm vers Nexus..."
+                    withCredentials([usernamePassword(credentialsId: NEXUS_CREDENTIAL_ID, usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
+                        // Générer un token d'authentification pour npm
+                        sh '''
+                            echo "//192.168.33.10:8081/repository/npm-repo/:_auth=$(echo -n "${NEXUS_USERNAME}:${NEXUS_PASSWORD}" | base64)" >> ~/.npmrc
+                        '''
+
+                        // Backend
+                        dir('backend') {
+                            sh 'npm version patch --no-git-tag-version' // Incrémenter la version
+                            sh 'npm publish --registry http://192.168.33.10:8081/repository/npm-repo/'
+                        }
+
+                        // Frontend
+                        dir('frontend') {
+                            sh 'npm version patch --no-git-tag-version' // Incrémenter la version
+                            sh 'npm publish --registry http://192.168.33.10:8081/repository/npm-repo/'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo "🛠️ Construction de l'image backend..."
+                    dir('backend') {
+                        def imageName = "projectmanagement"
+                        def imageTag = "${env.BUILD_NUMBER}"
+                        def fullImageName = "${imageName}:${imageTag}"
+
+                        // Build de l'image localement
+                        sh "docker build -t ${fullImageName} ."
+                    }
+                }
+            }
+        }
+        tee -a /etc/prometheus/prometheus.yml <<EOF - job_name: jenkins 
+metrics_path: /prometheus 
+static_configs: - targets: ['172.17.0.1:808'] 
+EOF
+
+    
+    stage('Publish Docker Image to Docker Hub') {
+            steps {
+                script {
+                    echo "📤 Publication de l'image vers Docker Hub..."
+                    dir('backend') {
+                        def imageName = "projectmanagement"
+                        def imageTag = "${env.BUILD_NUMBER}"
+                        def fullImageName = "${imageName}:${imageTag}"
+                        withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
+                            sh "echo \$DOCKERHUB_PASSWORD | docker login -u \$DOCKERHUB_USERNAME --password-stdin"
+                            sh "docker tag ${fullImageName} ${DOCKERHUB_USERNAME}/${imageName}:${imageTag}"
+                            sh "docker push ${DOCKERHUB_USERNAME}/${imageName}:${imageTag}"
+                            sh "docker tag ${fullImageName} ${DOCKERHUB_USERNAME}/${imageName}:latest"
+                            sh "docker push ${DOCKERHUB_USERNAME}/${imageName}:latest"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Run Application') {
+            steps {
+                script {
+                    echo "🚀 Démarrage de l'application..."
+                    sh 'docker-compose -f docker-compose.yml up -d'
+                }
+            }
+        }
+    }
+
+
+ post {
+    success {
+        echo '✅ Pipeline exécuté avec succès !'
+    }
+    failure {
+        echo '❌ Le pipeline a échoué. Vérifiez les logs.'
+    }
+    always {
+        echo "📂 Nettoyage de l'espace de travail après exécution..."
+        sh 'docker-compose down -v || true'
+        cleanWs()
+    }
+}
+    
+}

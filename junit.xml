@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="7" failures="0" errors="0" time="3.909">
-  <testsuite name="Auth Controller Tests" errors="0" failures="0" skipped="0" timestamp="2025-03-12T02:08:31" time="3.819" tests="7">
-    <testcase classname="Auth Controller Tests should register a new user" name="Auth Controller Tests should register a new user" time="0.134">
+<testsuites name="jest tests" tests="7" failures="0" errors="0" time="13.345">
+  <testsuite name="Project Controller Tests" errors="0" failures="0" skipped="0" timestamp="2025-05-05T20:24:42" time="13.189" tests="7">
+    <testcase classname="Project Controller Tests should create a new project" name="Project Controller Tests should create a new project" time="0.511">
     </testcase>
-    <testcase classname="Auth Controller Tests should fail to register a duplicate email" name="Auth Controller Tests should fail to register a duplicate email" time="0.009">
+    <testcase classname="Project Controller Tests should fail to create a project with missing required fields" name="Project Controller Tests should fail to create a project with missing required fields" time="0.191">
     </testcase>
-    <testcase classname="Auth Controller Tests should login with correct credentials" name="Auth Controller Tests should login with correct credentials" time="0.09">
+    <testcase classname="Project Controller Tests should fetch all projects" name="Project Controller Tests should fetch all projects" time="0.396">
     </testcase>
-    <testcase classname="Auth Controller Tests should verify 2FA if required" name="Auth Controller Tests should verify 2FA if required" time="0.002">
+    <testcase classname="Project Controller Tests should fetch a project by ID" name="Project Controller Tests should fetch a project by ID" time="0.349">
     </testcase>
-    <testcase classname="Auth Controller Tests should fetch all users" name="Auth Controller Tests should fetch all users" time="0.01">
+    <testcase classname="Project Controller Tests should update a project" name="Project Controller Tests should update a project" time="0.429">
     </testcase>
-    <testcase classname="Auth Controller Tests should update user details" name="Auth Controller Tests should update user details" time="0.012">
+    <testcase classname="Project Controller Tests should fail to update projectManager" name="Project Controller Tests should fail to update projectManager" time="0.377">
     </testcase>
-    <testcase classname="Auth Controller Tests should delete a user" name="Auth Controller Tests should delete a user" time="0.007">
+    <testcase classname="Project Controller Tests should delete a project" name="Project Controller Tests should delete a project" time="0.401">
     </testcase>
   </testsuite>
 </testsuites>
