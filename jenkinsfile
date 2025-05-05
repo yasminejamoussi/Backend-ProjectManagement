@@ -6,7 +6,7 @@ pipeline {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
         FRONTEND_REPO = 'https://github.com/yasminejamoussi/FrontEnd-ProjectManagement.git'
         SONAR_TOKEN = credentials('sonarqb')
-        NEXUS_URL = '192.168.33.10:8082'
+        NEXUS_URL = '192.168.33.10:8081'
         NEXUS_REPOSITORY = 'dockr-repo'
         NEXUS_CREDENTIAL_ID = 'nexus'
     }
@@ -131,7 +131,7 @@ stage('SonarQube Analysis') {
     }
 }
 
-      /*  stage('Deploy Docker Image to Nexus') {
+       stage('Deploy Docker Image to Nexus') {
             steps {
                 script {
                     echo "📤 Déploiement de l'image backend vers Nexus..."
@@ -148,13 +148,13 @@ stage('SonarQube Analysis') {
                     }
                 }
             }
-        }*/
+        }
 
         stage('Run Application') {
             steps {
                 script {
                     echo "🚀 Démarrage de l'application..."
-                    sh 'docker-compose -f docker-compose.yaml up -d'
+                    sh 'docker-compose -f docker-compose.yml up -d'
                 }
             }
         }
