@@ -17,4 +17,4 @@ COPY --from=builder /app/node_modules ./node_modules
 ENV PATH="/venv/bin:$PATH"
 COPY . .
 EXPOSE 4000
-CMD ["node", "server.js"]
+CMD ["node", "src/server.js"]
