@@ -154,7 +154,7 @@ stage('SonarQube Analysis') {
                 def imageName = "projectmanagement"
                 def imageTag = "${env.BUILD_NUMBER}"
                 def fullImageName = "${imageName}:${imageTag}"
-                def nexusDockerUrl = "${NEXUS_URL}" // Utilise 8081 comme demandé
+                def nexusDockerUrl = "${NEXUS_URL.replace('8081', '8083')}" // Force l'utilisation de 8083
 
                 sh "docker build -t ${fullImageName} ."
                 withDockerRegistry([url: "http://${nexusDockerUrl}", credentialsId: NEXUS_CREDENTIAL_ID, skipTlsVerify: true]) {
