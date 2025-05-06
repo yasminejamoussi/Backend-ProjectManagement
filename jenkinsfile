@@ -197,9 +197,13 @@ stage('SonarQube Analysis') {
     steps {
         script {
             echo "🚀 Démarrage de l'application..."
-            dir('backend') { // Run in backend directory
-                sh 'docker-compose -f docker-compose.yml up -d'
-            }
+           dir('backend') {
+                    echo "🧹 Nettoyage des conteneurs avant de lancer l'application..."
+                    sh 'docker-compose down --remove-orphans --volumes'
+                    echo "🚀 Lancement de l'application..."
+                    sh 'docker-compose up -d'
+                    echo "✅ Application démarrée !"
+                }
         }
     }
 }
