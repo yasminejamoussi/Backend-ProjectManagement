@@ -27,12 +27,19 @@ app.use(logActivity);
 //app.use(cors({ origin: "http://localhost:5173" }));
 app.use(cors({
   origin: [
-    "http://localhost:5173", // Pour le développement local
+    //"http://localhost:5173", // Pour le développement local
     "https://frontend-projectmanagement.onrender.com" // Pour le déploiement sur Render
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Méthodes autorisées
   allowedHeaders: ["Content-Type", "Authorization"] // En-têtes autorisés
 }));
+// Middleware de débogage
+app.use((req, res, next) => {
+  console.log("Requête reçue :", req.method, req.url);
+  console.log("Origine de la requête :", req.headers.origin);
+  console.log("En-têtes CORS ajoutés :", res.get('Access-Control-Allow-Origin'));
+  next();
+});
 // 🔹 Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/roles", roleRoutes);
