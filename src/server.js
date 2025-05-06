@@ -31,22 +31,30 @@ app.use(cors({
       "http://localhost:5173",
       "https://frontend-projectmanagement.onrender.com"
     ];
+    console.log('CORS Origin reçue:', origin);
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      console.error('CORS bloqué pour origin:', origin);
+      callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
+
+// Gérer explicitement les requêtes OPTIONS
+app.options('*', cors());
+
 // Middleware de débogage
 app.use((req, res, next) => {
-  console.log("Requête reçue :", req.method, req.url);
-  console.log("Origine de la requête :", req.headers.origin);
-  console.log("En-têtes CORS ajoutés :", res.get('Access-Control-Allow-Origin'));
+  console.log('Requête reçue:', req.method, req.url);
+  console.log('Origine de la requête:', req.headers.origin);
+  console.log('En-têtes CORS ajoutés:', res.get('Access-Control-Allow-Origin'));
   next();
 });
+
 // 🔹 Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/roles", roleRoutes);
