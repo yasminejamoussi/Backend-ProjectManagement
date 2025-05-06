@@ -40,15 +40,10 @@ const express = require("express");
    }));
 
    // Gérer explicitement les requêtes OPTIONS
-   app.options('*', cors((req, callback) => {
-     console.log('Requête OPTIONS reçue pour:', req.url);
-     callback(null, {
-       origin: true,
-       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-       allowedHeaders: ['Content-Type', 'Authorization'],
-       credentials: true
-     });
-   }));
+   app.options('*', (req, res) => {
+    console.log('Requête OPTIONS reçue pour:', req.url);
+    res.status(204).end();
+  });
 
    // 🔹 Middleware de débogage
    app.use((req, res, next) => {
