@@ -56,7 +56,7 @@ pipeline {
             echo "🔍 Attente de la disponibilité de mongo-test..."
             //sh 'until nc -z 192.168.1.18 27018; do echo "En attente de mongo-test..."; sleep 5; done'
             //sh 'until nc -z 172.16.1.235 27018; do echo "En attente de mongo-test..."; sleep 5; done'
-            until nc -z mongo-test 27017; do echo "En attente..."; sleep 5; done
+           sh ' until nc -z mongo-test 27017; do echo "En attente..."; sleep 5; done'
 
             echo "✅ Mongo-test est accessible !"
             timeout(time: 30, unit: 'MINUTES') {
