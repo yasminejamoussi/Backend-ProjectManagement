@@ -1,17 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="6" failures="0" errors="0" time="8.32">
-  <testsuite name="Auth Controller Tests" errors="0" failures="0" skipped="0" timestamp="2025-05-06T15:58:19" time="8.196" tests="6">
-    <testcase classname="Auth Controller Tests should register a new user" name="Auth Controller Tests should register a new user" time="0.211">
+<testsuites name="jest tests" tests="12" failures="0" errors="0" time="14.882">
+  <testsuite name="Task Controller CRUD Tests" errors="0" failures="0" skipped="0" timestamp="2025-05-06T16:22:55" time="14.764" tests="12">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should create a new task" name="Task Controller CRUD Tests Task CRUD Operations should create a new task" time="0.083">
     </testcase>
-    <testcase classname="Auth Controller Tests should fail to register a duplicate email" name="Auth Controller Tests should fail to register a duplicate email" time="0.086">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to create a task with invalid data" name="Task Controller CRUD Tests Task CRUD Operations should fail to create a task with invalid data" time="0.017">
     </testcase>
-    <testcase classname="Auth Controller Tests should verify 2FA if required" name="Auth Controller Tests should verify 2FA if required" time="0.078">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should create a task without authentication" name="Task Controller CRUD Tests Task CRUD Operations should create a task without authentication" time="0.053">
     </testcase>
-    <testcase classname="Auth Controller Tests should fetch all users" name="Auth Controller Tests should fetch all users" time="0.127">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fetch all tasks" name="Task Controller CRUD Tests Task CRUD Operations should fetch all tasks" time="0.025">
     </testcase>
-    <testcase classname="Auth Controller Tests should update user details" name="Auth Controller Tests should update user details" time="0.103">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fetch a task by ID" name="Task Controller CRUD Tests Task CRUD Operations should fetch a task by ID" time="0.017">
     </testcase>
-    <testcase classname="Auth Controller Tests should delete a user" name="Auth Controller Tests should delete a user" time="0.101">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to fetch a non-existent task" name="Task Controller CRUD Tests Task CRUD Operations should fail to fetch a non-existent task" time="0.009">
+    </testcase>
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should update a task" name="Task Controller CRUD Tests Task CRUD Operations should update a task" time="0.054">
+    </testcase>
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to update a task with invalid data" name="Task Controller CRUD Tests Task CRUD Operations should fail to update a task with invalid data" time="0.022">
+    </testcase>
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to update a non-existent task" name="Task Controller CRUD Tests Task CRUD Operations should fail to update a non-existent task" time="0.027">
+    </testcase>
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should delete a task" name="Task Controller CRUD Tests Task CRUD Operations should delete a task" time="0.087">
+    </testcase>
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to delete a non-existent task" name="Task Controller CRUD Tests Task CRUD Operations should fail to delete a non-existent task" time="0.068">
+    </testcase>
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should delete a task without authentication" name="Task Controller CRUD Tests Task CRUD Operations should delete a task without authentication" time="0.147">
     </testcase>
   </testsuite>
 </testsuites>

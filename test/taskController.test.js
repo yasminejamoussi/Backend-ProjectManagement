@@ -30,11 +30,17 @@ describe("Task Controller CRUD Tests", () => {
   };
 
   beforeAll(async () => {
-    jest.setTimeout(120000); // Augmenter le timeout à 2 minutes
-      process.env.NODE_ENV = "test";
+    jest.setTimeout(300000); // Increase to 5 minutes
+    process.env.NODE_ENV = "test";
     if (mongoose.connection.readyState === 0) {
       console.log("🕐 Connexion à MongoDB...");
-      await mongoose.connect(mongoUri);
+      console.log("MongoDB URI:", mongoUri);
+      await mongoose.connect(mongoUri, {
+        serverSelectionTimeoutMS: 120000, // 2 minutes
+        connectTimeoutMS: 120000, // 2 minutes
+        maxPoolSize: 20, // Increase connection pool
+      });
+      console.log("✅ MongoDB connected!");
     }
 
     let attempts = 0;
