@@ -33,11 +33,7 @@ pipeline {
                     steps {
                         dir('backend') {
                             echo "📦 Installation des dépendances du backend..."
-                            sh 'apt-get update && apt-get install -y build-essential python3'
-                            sh 'npm cache clean --force'
-                            sh 'rm -rf node_modules package-lock.json'
                             sh 'npm install'
-                            sh 'npm install --save-dev jest-junit'
                         }
                     }
                 }
@@ -45,8 +41,6 @@ pipeline {
                     steps {
                         dir('frontend') {
                             echo "📦 Installation des dépendances du frontend..."
-                            sh 'npm cache clean --force'
-                            sh 'rm -rf node_modules package-lock.json'
                             sh 'npm install'
                         }
                     }
