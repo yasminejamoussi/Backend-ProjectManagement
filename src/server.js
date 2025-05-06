@@ -19,12 +19,7 @@ const activityLogRoutes = require("./routes/activityLogRoutes");
 
 const app = express();
 
-// 🔹 Middleware
-app.use(morgan("dev"));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(logActivity);
-//app.use(cors({ origin: "http://localhost:5173" }));
+// 🔹 Middleware CORS (en premier)
 app.use(cors({
   origin: (origin, callback) => {
     const allowedOrigins = [
@@ -46,6 +41,12 @@ app.use(cors({
 
 // Gérer explicitement les requêtes OPTIONS
 app.options('*', cors());
+
+// 🔹 Autres middlewares
+app.use(morgan("dev"));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(logActivity);
 
 // Middleware de débogage
 app.use((req, res, next) => {
@@ -69,34 +70,18 @@ app.get("/", (req, res) => {
 });
 
 // 🔹 Tâche cron pour vérifier les retards
-//cron.schedule("*/5 * * * *", () => {
-  //console.log("Exécution de la vérification des retards...");
- // checkAndNotifyDelays();
-//});
+// cron.schedule("*/5 * * * *", () => {
+//   console.log("Exécution de la vérification des retards...");
+//   checkAndNotifyDelays();
+// });
 
 // 🔹 Gestion des erreurs
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Erreur serveur:', err.stack);
   res.status(500).json({ error: "Internal Server Error" });
 });
 
 // 🔹 Connexion à MongoDB et démarrage du serveur
-/*if (process.env.NODE_ENV !== "test") {
-  mongoose
-    .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(async () => {
-      console.log("✅ Connected to MongoDB");
-      const PORT = process.env.PORT || 4000;
-      app.listen(PORT, () => {
-        console.log(`🚀 Server running on http://localhost:${PORT}`);
-        scheduleAnomalyDetection(); // Appeler après le démarrage du serveur
-      });
-    })
-    .catch((err) => {
-      console.error("❌ MongoDB connection error:", err.message);
-      process.exit(1);
-    });
-}*/
 if (process.env.NODE_ENV !== "test") {
   mongoose
     .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
