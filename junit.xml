@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="4" failures="0" errors="0" time="13.334">
-  <testsuite name="ActivityLog Controller Tests" errors="0" failures="0" skipped="0" timestamp="2025-05-05T23:16:07" time="13.158" tests="4">
-    <testcase classname="ActivityLog Controller Tests should fetch all activity logs for Admin" name="ActivityLog Controller Tests should fetch all activity logs for Admin" time="0.104">
+<testsuites name="jest tests" tests="7" failures="0" errors="0" time="18.323">
+  <testsuite name="Project Controller Tests" errors="0" failures="0" skipped="0" timestamp="2025-05-06T00:23:22" time="18.167" tests="7">
+    <testcase classname="Project Controller Tests should create a new project" name="Project Controller Tests should create a new project" time="0.562">
     </testcase>
-    <testcase classname="ActivityLog Controller Tests should fetch relevant activity logs for Project Manager" name="ActivityLog Controller Tests should fetch relevant activity logs for Project Manager" time="1.202">
+    <testcase classname="Project Controller Tests should fail to create a project with missing required fields" name="Project Controller Tests should fail to create a project with missing required fields" time="0.213">
     </testcase>
-    <testcase classname="ActivityLog Controller Tests should fail when userId is not provided" name="ActivityLog Controller Tests should fail when userId is not provided" time="0.026">
+    <testcase classname="Project Controller Tests should fetch all projects" name="Project Controller Tests should fetch all projects" time="0.347">
     </testcase>
-    <testcase classname="ActivityLog Controller Tests should fail when userId is invalid" name="ActivityLog Controller Tests should fail when userId is invalid" time="0.055">
+    <testcase classname="Project Controller Tests should fetch a project by ID" name="Project Controller Tests should fetch a project by ID" time="0.304">
+    </testcase>
+    <testcase classname="Project Controller Tests should update a project" name="Project Controller Tests should update a project" time="0.319">
+    </testcase>
+    <testcase classname="Project Controller Tests should fail to update projectManager" name="Project Controller Tests should fail to update projectManager" time="0.296">
+    </testcase>
+    <testcase classname="Project Controller Tests should delete a project" name="Project Controller Tests should delete a project" time="0.347">
     </testcase>
   </testsuite>
 </testsuites>

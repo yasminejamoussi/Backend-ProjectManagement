@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:18-bullseye'
+            args '-u root'
+        }
+    }
 
     environment {
         BACKEND_REPO = 'https://github.com/yasminejamoussi/Backend-ProjectManagement.git'
@@ -10,7 +15,7 @@ pipeline {
         NEXUS_CREDENTIAL_ID = 'nexus'
     }
 
-   stages {
+    stages {
         stage('Checkout Code') {
             steps {
                 script {
@@ -28,7 +33,11 @@ pipeline {
                     steps {
                         dir('backend') {
                             echo "📦 Installation des dépendances du backend..."
+                            sh 'apt-get update && apt-get install -y build-essential python3'
+                            sh 'npm cache clean --force'
+                            sh 'rm -rf node_modules package-lock.json'
                             sh 'npm install'
+                            sh 'npm install --save-dev jest-junit'
                         }
                     }
                 }
@@ -36,8 +45,32 @@ pipeline {
                     steps {
                         dir('frontend') {
                             echo "📦 Installation des dépendances du frontend..."
+                            sh 'npm cache clean --force'
+                            sh 'rm -rf node_modules package-lock.json'
                             sh 'npm install'
                         }
+                    }
+                }
+            }
+        }
+
+        stage('Start MongoDB and Application') {
+            steps {
+                dir('backend') {
+                    echo "🚀 Démarrage de MongoDB et de l'application..."
+                    sh 'docker-compose -f docker-compose.yaml up -d'
+                    // Attendre que MongoDB soit prêt
+                    sh 'docker-compose -f docker-compose.yaml exec -T mongotest mongo --eval "printjson(db.adminCommand({ ping: Ascending))" || sleep 5 && docker-compose -f docker-compose.yaml exec -T mongotest mongo --eval "printjson(db.adminCommand({ ping: 1 }))"'
+                }
+            }
+        }
+
+        stage('Unit Test Backend') {
+            steps {
+                dir('backend') {
+                    echo "🧪 Exécution des tests..."
+                    timeout(time: 10, unit: 'MINUTES') {
+                        sh 'docker-compose -f docker-compose.yaml run --rm api npx jest test/projectManagement.test.js --ci --testTimeout=40000 --reporters=default --reporters=jest-junit'
                     }
                 }
             }
@@ -61,22 +94,11 @@ pipeline {
                                     -Dsonar.exclusions=**/*.test.js,**/*.spec.js,**/node_modules/**,**/coverage/**,src/utils/**,src/controllers/**,src/routes/**,src/scripts/**,src/middleware/**,src/server.js \
                                     -Dsonar.host.url=http://192.168.33.10:9000 \
                                     -Dsonar.login=${SONAR_LOGIN} \
-                                    -X || true
+                                    -X
                                     """
                                 }
                             }
                         }
-                    }
-                }
-            }
-        }
-
-        stage('Unit Test Backend') {
-            steps {
-                dir('backend') {
-                    sh 'npm install --save-dev jest-junit'
-                    timeout(time: 10, unit: 'MINUTES') {
-                        sh 'npm test -- --ci --forceExit --reporters=default --reporters=jest-junit --verbose --detectOpenHandles'
                     }
                 }
             }
@@ -109,16 +131,6 @@ pipeline {
                 }
             }
         }
-
-
-        stage('Run Application') {
-            steps {
-                script {
-                    echo "🚀 Démarrage de l'application..."
-                    sh 'docker-compose -f docker-compose.yaml up -d'
-                }
-            }
-        }
     }
 
     post {
@@ -130,7 +142,10 @@ pipeline {
         }
         always {
             echo "📂 Nettoyage de l'espace de travail après exécution..."
-            sh 'docker-compose down -v || true'
+            dir('backend') {
+                sh 'docker-compose -f docker-compose.yaml down -v --remove-orphans || true'
+            }
+            sh 'docker system prune -f || true'
             cleanWs()
         }
     }
