@@ -201,12 +201,24 @@ stage('SonarQube Analysis') {
                 }
             }
         }*/
-        stage('Run Application') {
+       /* stage('Run Application') {
     steps {
         script {
             echo "🚀 Démarrage de l'application..."
             dir('backend') { // Run in backend directory
                 sh 'docker-compose -f docker-compose.yml up -d'
+            }
+        }
+    }
+}*/
+stage('Run Application') {
+    steps {
+        script {
+            echo "🚀 Démarrage de l'application..."
+            dir('backend') {
+                withEnv(["DOCKER_HOST=tcp://172.16.1.235:2375", "COMPOSE_HTTP_TIMEOUT=120"]) {
+                    sh 'docker-compose -f docker-compose.yml up -d'
+                }
             }
         }
     }
