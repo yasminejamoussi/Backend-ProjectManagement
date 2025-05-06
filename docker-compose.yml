@@ -1,32 +1,32 @@
 services:
   api:
     build:
-      context: .
+      context: .  # La racine de backend-projectmanagement
       dockerfile: Dockerfile
     container_name: api
     ports:
-      - "4000:4000"
+      - "4000:4000"  # Format correct : une liste de mappings
     volumes:
       - ".:/app"
       - "/app/node_modules"
     environment:
       - NODE_ENV=test
       - TEST_MONGO_URI=mongodb://testuser:testpass@mongo-test:27017/testdb?authSource=admin
-    depends_on:
-      - mongo-test
+
+
   web:
     build:
-      context: ../frontend/projectmanagement
+      context: ../frontend/projectmanagement  # Chemin corrigé
       dockerfile: Dockerfile
     container_name: web
     ports:
-      - "5173:5173"
+      - "5173:5173"  # Format correct
     volumes:
       - "../frontend/projectmanagement:/src"
-      - "/src/node_modules"
-      - "../frontend/projectmanagement/public:/src/public"
+      #- "/src/node_modules"
+
   mongo:
-    image: mongo:4.4
+    image: mongo
     restart: always
     container_name: mongodb
     ports:
@@ -36,8 +36,9 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: project123
     volumes:
       - db-data:/data/db
-  mongo-test:
-    image: mongo:4.4
+
+  mongotest:  
+    image: mongo
     container_name: mongo-test
     ports:
       - "27018:27017"
@@ -46,6 +47,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: testpass
     volumes:
       - mongo-test-data:/data/db
+
 volumes:
   db-data: {}
   mongo-test-data: {}

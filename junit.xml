@@ -1,3 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="0" failures="0" errors="0" time="9.235">
+<testsuites name="jest tests" tests="6" failures="0" errors="0" time="8.32">
+  <testsuite name="Auth Controller Tests" errors="0" failures="0" skipped="0" timestamp="2025-05-06T15:58:19" time="8.196" tests="6">
+    <testcase classname="Auth Controller Tests should register a new user" name="Auth Controller Tests should register a new user" time="0.211">
+    </testcase>
+    <testcase classname="Auth Controller Tests should fail to register a duplicate email" name="Auth Controller Tests should fail to register a duplicate email" time="0.086">
+    </testcase>
+    <testcase classname="Auth Controller Tests should verify 2FA if required" name="Auth Controller Tests should verify 2FA if required" time="0.078">
+    </testcase>
+    <testcase classname="Auth Controller Tests should fetch all users" name="Auth Controller Tests should fetch all users" time="0.127">
+    </testcase>
+    <testcase classname="Auth Controller Tests should update user details" name="Auth Controller Tests should update user details" time="0.103">
+    </testcase>
+    <testcase classname="Auth Controller Tests should delete a user" name="Auth Controller Tests should delete a user" time="0.101">
+    </testcase>
+  </testsuite>
 </testsuites>
