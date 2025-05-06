@@ -24,8 +24,15 @@ app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(logActivity);
-app.use(cors({ origin: "http://localhost:5173" }));
-
+//app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({
+  origin: [
+    "http://localhost:5173", // Pour le développement local
+    "https://frontend-projectmanagement.onrender.com" // Pour le déploiement sur Render
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Méthodes autorisées
+  allowedHeaders: ["Content-Type", "Authorization"] // En-têtes autorisés
+}));
 // 🔹 Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/roles", roleRoutes);
