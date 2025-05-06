@@ -193,15 +193,7 @@ stage('SonarQube Analysis') {
             }
         }*/
 
-      /*  stage('Run Application') {
-            steps {
-                script {
-                    echo "🚀 Démarrage de l'application..."
-                    sh 'docker-compose -f docker-compose.yml up -d'
-                }
-            }
-        }*/
-       /* stage('Run Application') {
+        stage('Run Application') {
     steps {
         script {
             echo "🚀 Démarrage de l'application..."
@@ -210,8 +202,8 @@ stage('SonarQube Analysis') {
             }
         }
     }
-}*/
-stage('Run Application') {
+}
+/*stage('Run Application') {
     steps {
         script {
             echo "🚀 Démarrage de l'application..."
@@ -222,7 +214,7 @@ stage('Run Application') {
             }
         }
     }
-}
+}*/
     }
 
 
