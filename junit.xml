@@ -1,29 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="12" failures="0" errors="0" time="14.882">
-  <testsuite name="Task Controller CRUD Tests" errors="0" failures="0" skipped="0" timestamp="2025-05-06T16:22:55" time="14.764" tests="12">
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should create a new task" name="Task Controller CRUD Tests Task CRUD Operations should create a new task" time="0.083">
+<testsuites name="jest tests" tests="12" failures="0" errors="0" time="15.028">
+  <testsuite name="Task Controller CRUD Tests" errors="0" failures="0" skipped="0" timestamp="2025-05-06T16:51:11" time="14.903" tests="12">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should create a new task" name="Task Controller CRUD Tests Task CRUD Operations should create a new task" time="0.087">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to create a task with invalid data" name="Task Controller CRUD Tests Task CRUD Operations should fail to create a task with invalid data" time="0.017">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to create a task with invalid data" name="Task Controller CRUD Tests Task CRUD Operations should fail to create a task with invalid data" time="0.023">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should create a task without authentication" name="Task Controller CRUD Tests Task CRUD Operations should create a task without authentication" time="0.053">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should create a task without authentication" name="Task Controller CRUD Tests Task CRUD Operations should create a task without authentication" time="0.066">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fetch all tasks" name="Task Controller CRUD Tests Task CRUD Operations should fetch all tasks" time="0.025">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fetch all tasks" name="Task Controller CRUD Tests Task CRUD Operations should fetch all tasks" time="0.023">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fetch a task by ID" name="Task Controller CRUD Tests Task CRUD Operations should fetch a task by ID" time="0.017">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fetch a task by ID" name="Task Controller CRUD Tests Task CRUD Operations should fetch a task by ID" time="0.02">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to fetch a non-existent task" name="Task Controller CRUD Tests Task CRUD Operations should fail to fetch a non-existent task" time="0.009">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to fetch a non-existent task" name="Task Controller CRUD Tests Task CRUD Operations should fail to fetch a non-existent task" time="0.023">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should update a task" name="Task Controller CRUD Tests Task CRUD Operations should update a task" time="0.054">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should update a task" name="Task Controller CRUD Tests Task CRUD Operations should update a task" time="0.086">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to update a task with invalid data" name="Task Controller CRUD Tests Task CRUD Operations should fail to update a task with invalid data" time="0.022">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to update a task with invalid data" name="Task Controller CRUD Tests Task CRUD Operations should fail to update a task with invalid data" time="0.018">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to update a non-existent task" name="Task Controller CRUD Tests Task CRUD Operations should fail to update a non-existent task" time="0.027">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to update a non-existent task" name="Task Controller CRUD Tests Task CRUD Operations should fail to update a non-existent task" time="0.016">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should delete a task" name="Task Controller CRUD Tests Task CRUD Operations should delete a task" time="0.087">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should delete a task" name="Task Controller CRUD Tests Task CRUD Operations should delete a task" time="0.059">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to delete a non-existent task" name="Task Controller CRUD Tests Task CRUD Operations should fail to delete a non-existent task" time="0.068">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should fail to delete a non-existent task" name="Task Controller CRUD Tests Task CRUD Operations should fail to delete a non-existent task" time="0.045">
     </testcase>
-    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should delete a task without authentication" name="Task Controller CRUD Tests Task CRUD Operations should delete a task without authentication" time="0.147">
+    <testcase classname="Task Controller CRUD Tests Task CRUD Operations should delete a task without authentication" name="Task Controller CRUD Tests Task CRUD Operations should delete a task without authentication" time="0.102">
     </testcase>
   </testsuite>
 </testsuites>
