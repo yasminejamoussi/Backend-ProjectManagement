@@ -26,12 +26,19 @@ app.use(express.urlencoded({ extended: false }));
 app.use(logActivity);
 //app.use(cors({ origin: "http://localhost:5173" }));
 app.use(cors({
-  origin: [
-    //"http://localhost:5173", // Pour le développement local
-    "https://frontend-projectmanagement.onrender.com" // Pour le déploiement sur Render
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Méthodes autorisées
-  allowedHeaders: ["Content-Type", "Authorization"] // En-têtes autorisés
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      "http://localhost:5173",
+      "https://frontend-projectmanagement.onrender.com"
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 // Middleware de débogage
 app.use((req, res, next) => {
