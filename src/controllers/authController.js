@@ -220,9 +220,9 @@ exports.register = async (req, res) => {
         }
 
         // Vérifier si le rôle "Guest" existe, sinon le créer
-        let guestRole = await Role.findOne({ name: 'Guest' });
+        let guestRole = await Role.findOne({ name: 'Admin' });
         if (!guestRole) {
-            guestRole = new Role({ name: 'Guest' });
+            guestRole = new Role({ name: 'Admin' });
             await guestRole.save();
         }
 
@@ -573,7 +573,7 @@ exports.googleAuth = async (req, res) => {
         let user = await User.findOne({ email });
 
         if (!user) {
-            const guestRole = await Role.findOne({ name: 'Admin' });
+            const guestRole = await Role.findOne({ name: 'Guest' });
 
             if (!guestRole) {
                 console.error("Error: 'Guest' role not found");
