@@ -29,14 +29,27 @@ try:
                 result[k] = v
         return result
 
+    # Get arguments
+    if len(sys.argv) < 5:
+        raise ValueError("Missing required arguments: user_email, ip, success, mongo_uri")
+
+    user_email = sys.argv[1]
+    ip = sys.argv[2]
+    success = sys.argv[3].lower() == "true"
+    mongo_uri = sys.argv[4]  # Use the passed MongoDB URI
+
+    log("Démarrage du script Python...")
+    log(f"Arguments reçus: user_email={user_email}, ip={ip}, success={success}, mongo_uri={mongo_uri}")
+
+    # Connect to MongoDB using the provided URI
     log("Connexion à MongoDB...")
-    client = MongoClient("mongodb://projectmanagement:project123@mongo:27017/projectmanagement?authSource=admin")
-    db = client["projectmanagement"]
+    client = MongoClient(mongo_uri)
+    db = client["projectmanagement"]  # Use the database name from the URI
     collection = db["loginattempts"]
     users_collection = db["users"]
     log("Connexion réussie.")
 
-    # Créer un index unique sur le champ email
+    # Create a unique index on the email field
     try:
         users_collection.create_index([("email", 1)], unique=True)
         log("Index unique créé sur le champ 'email'.")
@@ -47,13 +60,11 @@ try:
         user_email = user_email.lower().strip()
         log(f"Traitement de l'échec de connexion pour {user_email}")
 
-        # Récupérer l'utilisateur avant mise à jour
         user_before = users_collection.find_one({"email": user_email})
         anomaly_count_before = user_before.get("anomaly_count", 0) if user_before else 0
         user_before_doc = serialize_doc(user_before)
         log(f"Avant incrément: anomaly_count={anomaly_count_before}, user_id={str(user_before.get('_id')) if user_before else None}, user_doc={json.dumps(user_before_doc)}")
 
-        # Incrémenter anomaly_count
         result = users_collection.update_one(
             {"email": user_email},
             {"$inc": {"anomaly_count": 1}},
@@ -61,7 +72,6 @@ try:
         )
         log(f"anomaly_count incrémenté: matched={result.matched_count}, modified={result.modified_count}")
 
-        # Vérifier si le seuil est atteint
         user = users_collection.find_one({"email": user_email})
         anomaly_count = user.get("anomaly_count", 0) if user else 0
         user_doc = serialize_doc(user)
@@ -84,7 +94,6 @@ try:
 
         user = users_collection.find_one({"email": user_email})
 
-        # Vérifier si l'utilisateur est bloqué
         if user and user.get("blocked", False):
             blocked_until = user.get("blocked_until")
             log(f"blocked_until: {blocked_until}, type: {type(blocked_until)}, current time: {datetime.now()}")
@@ -105,7 +114,6 @@ try:
                 )
                 log(f"Update result: matched={result.matched_count}, modified={result.modified_count}")
 
-        # Enregistrer la tentative de connexion
         login_attempt = {
             "email": user_email,
             "ip": ip,
@@ -116,7 +124,6 @@ try:
         login_attempt_doc = serialize_doc(login_attempt)
         log(f"Tentative enregistrée : {json.dumps(login_attempt_doc)}")
 
-        # Connexion réussie
         if success:
             log(f"Connexion réussie pour {user_email}, réinitialisation du compteur d'anomalies.")
             result = users_collection.update_one(
@@ -126,23 +133,13 @@ try:
             log(f"anomaly_count réinitialisé à 0: matched={result.matched_count}, modified={result.modified_count}")
             collection.delete_many({"email": user_email, "success": False})
             return "no_anomaly"
-
-        # Connexion échouée
         else:
             log(f"Échec de connexion, appel de handle_failed_login pour {user_email}")
             return handle_failed_login(user_email)
 
-    # Exécution du script
-    if __name__ == "__main__":
-        log("Démarrage du script Python...")
-        user_email = sys.argv[1]
-        ip = sys.argv[2]
-        success = sys.argv[3].lower() == "true"
-        log(f"Arguments reçus: user_email={user_email}, ip={ip}, success={success}")
-
-        result = attempt_login(user_email, ip, success)
-        print(json.dumps({"status": result}))
-        sys.exit(0)
+    result = attempt_login(user_email, ip, success)
+    print(json.dumps({"status": result}))
+    sys.exit(0)
 
 except Exception as e:
     print(json.dumps({"error": str(e)}))
