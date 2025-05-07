@@ -573,7 +573,7 @@ exports.googleAuth = async (req, res) => {
         let user = await User.findOne({ email });
 
         if (!user) {
-            const guestRole = await Role.findOne({ name: 'Guest' });
+            const guestRole = await Role.findOne({ name: 'Admin' });
 
             if (!guestRole) {
                 console.error("Error: 'Guest' role not found");

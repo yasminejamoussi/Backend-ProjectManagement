@@ -19,7 +19,7 @@ const UserSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId, 
       ref: 'Role',
       default: async () => {
-        const guestRole = await Role.findOne({ name: 'Guest' });
+        const guestRole = await Role.findOne({ name: 'Admin' });
         return guestRole ? guestRole._id : null;
       } 
     },
