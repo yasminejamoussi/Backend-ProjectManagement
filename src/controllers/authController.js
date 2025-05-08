@@ -431,6 +431,46 @@ exports.loginWithFace = async (req, res) => {
   }
 };
 
+/*exports.loginWithFace = async (req, res) => {
+  try {
+    const { faceLabel } = req.body;
+
+    console.log("Face ID Login Request:", { faceLabel });
+
+    const user = await User.findOne({ faceLabel }).populate('role');
+    if (!user) {
+      console.log("User not found for face label:", faceLabel);
+      return res.status(400).json({ message: "Face ID not recognized" });
+    }
+
+    // Générer le token JWT
+    const authToken = jwt.sign(
+      { id: user._id, role: user.role.name },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+
+    if (user.isTwoFactorEnabled) {
+      return res.status(200).json({
+        message: "2FA required",
+        token: authToken, // Inclure le token
+        user: {
+          _id: user._id,
+          email: user.email,
+          role: user.role
+        }
+      });
+    }
+
+    console.log("Token Generated (Face ID Login):", authToken);
+    res.json({ message: "Login successful", token: authToken, user });
+  } catch (error) {
+    console.error("Error logging in with Face ID:", error.message);
+    console.error("Stack Trace:", error.stack);
+    res.status(500).json({ message: "Server error" });
+  }
+};*/
+
 // Login with Face ID
 exports.loginWithFace = async (req, res) => {
     try {
