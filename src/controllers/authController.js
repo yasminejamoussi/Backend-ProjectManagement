@@ -293,7 +293,18 @@ exports.login = async (req, res) => {
   
     // Appeler le script Python
     console.log("Appel du script Python pour:", email);
-    const pythonProcess = spawn("/venv/bin/python3", ["src/scripts/detect_anomalies.py", email, ip, isMatch.toString()], {
+    const mongoUri = process.env.MONGO_URI; // Get MongoDB URI from environment
+    if (!mongoUri) {
+      console.error("MONGO_URI is not defined in environment variables");
+      return res.status(500).json({ message: "Server configuration error: Missing MONGO_URI" });
+    }
+    const pythonProcess = spawn("/venv/bin/python3", [
+      "src/scripts/detect_anomalies.py",
+      email, // user_email
+      ip,   // ip
+      isMatch.toString(), // success
+      mongoUri // mongo_uri
+    ], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let pythonOutput = "";
