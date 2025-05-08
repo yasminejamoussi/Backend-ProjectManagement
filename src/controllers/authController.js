@@ -1059,6 +1059,56 @@ const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
    }
  };
  
-  
+  // Helper roleHierarchy object
+const roleHierarchy = {
+  Admin: 5,
+  'Project Manager': 4,
+  'Team Leader': 3,
+  'Team Member': 2,
+  Guest: 1,
+};
+ exports.getUsersByRole = async (req, res) => {
+  try {
+    const { roleName } = req.query; 
+    console.log('getUsersByRole called with:', { roleName });
 
+    if (!roleName) {
+      console.error('Missing roleName');
+      return res.status(400).json({ message: 'Role name is required' });
+    }
+
+    const validRoles = ['Admin', 'Project Manager', 'Team Leader', 'Team Member', 'Guest'];
+    if (!validRoles.includes(roleName)) {
+      console.error('Invalid role name:', roleName);
+      return res.status(400).json({ message: `Invalid role name. Must be one of: ${validRoles.join(', ')}` });
+    }
+
+    const role = await Role.findOne({ name: roleName });
+    if (!role) {
+      console.error('Role not found:', roleName);
+      return res.status(404).json({ message: `Role ${roleName} not found `});
+    }
+
+    const lowerRoles = validRoles.filter(r => roleHierarchy[r] < roleHierarchy[roleName]);
+    if (lowerRoles.length === 0) {
+      return res.status(200).json({ message: 'No lower roles found', users: [] });
+    }
+
+    const roleIds = await Promise.all(lowerRoles.map(r => Role.findOne({ name: r }).then(r => r?._id)));
+    const users = await User.find()
+      .populate('role', 'name')
+      .where('role')
+      .in(roleIds.filter(id => id !== null));
+
+    if (!users || users.length === 0) {
+      return res.status(200).json({ message: 'No users found with lower roles', users: [] });
+    }
+
+    console.log(`Found ${users.length} users with roles below ${roleName}`);
+    res.status(200).json({ message: 'Users retrieved successfully', users });
+  } catch (error) {
+    console.error('Error fetching users by role:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
 

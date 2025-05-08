@@ -18,7 +18,7 @@ router.post("/reset-password", resetPassword);
 ///crud
 router.get("/users/best-weekly" , userController.getBestWeeklyUser);
 router.get("/users/best-weekly-per-project" , userController.getBestWeeklyUserPerProject);
-
+router.get("/users/by-role", userController.getUsersByRole);
 
 
 router.get("/users", userController.getUsers); 

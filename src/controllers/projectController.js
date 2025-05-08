@@ -92,10 +92,15 @@ const matchUsers = async (requiredSkills) => {
     // Compétences communes
     const commonSkills = userSkills.filter(skill => requiredSkills.includes(skill));
 
-    // Score = (nombre de compétences communes / nombre de compétences requises) * 100
-    const score = requiredSkills.length > 0 
-      ? (commonSkills.length / requiredSkills.length) * 100 
+    // Score basé sur le pourcentage de compétences communes par rapport aux compétences de l'utilisateur
+    const score = userSkills.length > 0 
+      ? (commonSkills.length / userSkills.length) * 100 
       : 0;
+
+    // Minimum 1 compétence commune pour être éligible
+    if (commonSkills.length === 0) {
+      return null;
+    }
 
     return {
       id: user._id,
@@ -106,7 +111,7 @@ const matchUsers = async (requiredSkills) => {
       commonSkills,
       score: parseFloat(score.toFixed(2)) // Arrondir à 2 décimales
     };
-  });
+  }).filter(user => user !== null); // Filtrer les utilisateurs sans compétences communes
 
   // Trier les utilisateurs par score (du plus haut au plus bas)
   return matchedUsers.sort((a, b) => b.score - a.score);

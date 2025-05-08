@@ -18,4 +18,6 @@ router.put("/update", authMiddleware, updateUserProfile);
 
 router.post("/upload-cv", authMiddleware, profileController.uploadCV);
 
+router.delete('/delete-image', authMiddleware, profileController.deleteProfileImage);
+
 module.exports = router;

@@ -148,7 +148,7 @@ exports.uploadCV = (req, res) => {
         const pdfBuffer = req.file.buffer;
         const pdfData = await pdfParse(pdfBuffer);
         cvText = pdfData.text;
-        console.log("✅ Texte extrait :", cvText.substring(0, 100) + "...");
+        console.log("✅ Texte extrait complet :", cvText.substring(0, 200) + "...");
       } catch (pdfError) {
         console.error("❌ Erreur lors de l'extraction du texte :", pdfError);
         return res.status(500).json({ message: "Failed to extract text from CV", error: pdfError.message });
@@ -184,26 +184,29 @@ exports.uploadCV = (req, res) => {
       let extractedSkills = [];
       try {
         console.log("🤖 Exécution du script Python pour extraire les compétences...");
-        const escapedText = cvText.replace(/"/g, '\\"'); // Échapper les guillemets
-        const command = `python scripts/extract_skills.py "${escapedText}"`;
-        const { stdout, stderr } = await execPromise(command);
+        const escapedText = cvText.replace(/"/g, '\\"').replace(/\n/g, ' ');
+        const command = `python3 /app/src/scripts/extract_skills.py "${escapedText}"`;
+        console.log("📜 Commande exécutée :", command);
+        const { stdout, stderr } = await execPromise(command, { encoding: "utf8" });
 
         if (stderr) {
-          console.error("❌ Erreur lors de l'exécution du script Python :", stderr);
-          throw new Error(stderr);
+          console.error("❌ Erreur Python (stderr) :", stderr);
+          throw new Error(`Erreur Python : ${stderr}`);
         }
 
-        const result = JSON.parse(stdout);
+        // Nettoyer stdout pour extraire uniquement le JSON
+        console.log("✅ Sortie Python (stdout) :", stdout);
+        const jsonMatch = stdout.match(/{.*}/s); // Extraire la première occurrence de JSON
+        if (!jsonMatch) {
+          throw new Error("Aucun JSON valide trouvé dans la sortie du script Python");
+        }
+        const cleanedStdout = jsonMatch[0];
+        const result = JSON.parse(cleanedStdout);
         extractedSkills = result.skills || [];
         console.log("✅ Compétences extraites :", extractedSkills);
       } catch (scriptError) {
-        console.error("❌ Erreur lors de l'exécution du script Python :", scriptError.message);
-        // Fallback : utiliser une liste prédéfinie
-        const skillKeywords = ["react", "javascript", "python", "sql", "project management"];
-        extractedSkills = skillKeywords.filter((skill) =>
-          cvText.toLowerCase().includes(skill.toLowerCase())
-        );
-        console.log("⚠️ Fallback utilisé, compétences extraites :", extractedSkills);
+        console.error("❌ Erreur complète lors de l'exécution du script Python :", scriptError);
+        return res.status(500).json({ message: "Erreur lors de l'extraction des compétences", error: scriptError.message });
       }
 
       // Mise à jour du CV et des compétences
@@ -211,6 +214,7 @@ exports.uploadCV = (req, res) => {
       user.skills = extractedSkills.length > 0 ? extractedSkills : user.skills;
       await user.save();
 
+      console.log("✅ Compétences enregistrées dans la base de données :", user.skills);
       console.log("✔️ CV et compétences mis à jour avec succès !");
       res.json({
         cvUrl: user.cv,
@@ -218,8 +222,26 @@ exports.uploadCV = (req, res) => {
         message: "CV successfully uploaded and skills extracted",
       });
     } catch (error) {
-      console.error("❌ Erreur serveur :", error);
-      res.status(500).json({ message: "Server error", error: error.message });
+      console.error("❌ Erreur serveur générale :", error);
+      return res.status(500).json({ message: "Server error", error: error.message });
     }
   });
+};
+
+exports.deleteProfileImage = async (req, res) => {
+  try {
+    // Supprimer l'image de l'utilisateur dans la base de données
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { profileImage: '' },
+      { new: true }
+    );
+
+    // Ici vous pourriez aussi supprimer le fichier physique du serveur si nécessaire
+
+    res.status(200).json({ message: 'Profile image deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error deleting profile image' });
+  }
 };

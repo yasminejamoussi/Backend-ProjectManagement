@@ -9,10 +9,10 @@ from sklearn.metrics import silhouette_score
 SKILL_KEYWORDS = [
     "react", "javascript", "python", "sql", "java", "project management",
     "node.js", "node", "html", "css", "typescript", "mongodb", "docker", "aws",
-    "angular", "vue.js", "git", "jenkins", "kubernetes",
-    "ingénierie informatique", "développement logiciel", "gestion de projet",
+    "angular", "vue.js", "git", "jenkins", "kubernetes","Spring","Angular"
+    "ingénierie informatique", "développement logiciel", "gestion de projet","Node.Js"
     "ui design", "ux design", "api development", "backend development", "frontend development",
-    "database design", "cloud computing", "machine learning", "data analysis", "devops"
+    "database design", "cloud computing", "machine learning", "data analysis", "devops","HTML","CSS"
 ]
 
 def normalize_skills(users_skills):

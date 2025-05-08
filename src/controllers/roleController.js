@@ -4,11 +4,23 @@ const sendRoleEmail = require('../utils/roleEmail');
 
 exports.getRoles = async (req, res) => {
   try {
-    const roles = await Role.find().populate('users', 'email firstname lastname');
-    res.status(200).json(roles);
+    // Fetch all roles
+    const roles = await Role.find();
+
+    // For each role, fetch users who have this role assigned in the User model
+    const rolesWithUsers = await Promise.all(
+      roles.map(async (role) => {
+        const users = await User.find({ role: role._id })
+          .select('firstname lastname')
+          .lean();
+        return { ...role.toObject(), users };
+      })
+    );
+
+    res.status(200).json(rolesWithUsers);
   } catch (error) {
-    console.error('Error fetching roles:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error fetching roles:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
