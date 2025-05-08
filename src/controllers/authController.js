@@ -13,7 +13,7 @@ const Role = require('../models/Role'); // Assure-toi d'importer le modèle de r
 const path = require("path");
 const Project = require('../models/Project'); 
 const Task = require('../models/Task');
-
+const mongoose = require('mongoose'); // Ajouter pour vérifier ObjectId
 // Fonction pour générer un mot de passe fort
 exports.generateStrongPassword = (req, res) => {
     console.log("Démarrage de la génération du mot de passe...");
@@ -712,7 +712,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
 
   // Mettre à jour un utilisateur
-  exports.updateUser = async (req, res) => {
+  /*exports.updateUser = async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
@@ -742,8 +742,72 @@ const phoneRegex = /^[+]?\d[\d\s-]{8,15}$/;
     } catch (error) {
         res.status(500).json({ message: "Update error", error: error.message });
     }
-};
-  exports.getUserById = async (req, res) => {
+};*/
+  // Mettre à jour un utilisateur
+  exports.updateUser = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = { ...req.body };
+  
+      // Validation de l'email
+      if (updates.email && !emailRegex.test(updates.email)) {
+        return res.status(400).json({ message: 'Invalid email format' });
+      }
+  
+      // Validation du numéro de téléphone
+      if (updates.phone && !phoneRegex.test(updates.phone)) {
+        return res.status(400).json({ message: 'Invalid phone number format' });
+      }
+  
+      // Gestion du champ role
+      if (updates.role) {
+        if (typeof updates.role === 'string') {
+          const role = await Role.findOne({ name: updates.role });
+          if (!role) {
+            return res.status(400).json({ message: `Role '${updates.role}' not found` });
+          }
+          updates.role = role._id;
+  
+          // Mettre à jour Role.users
+          const user = await User.findById(id).populate('role');
+          if (user && user.role && user.role._id.toString() !== role._id.toString()) {
+            // Supprimer l'utilisateur de l'ancien rôle
+            await Role.updateOne(
+              { _id: user.role._id },
+              { $pull: { users: id } }
+            );
+            // Ajouter l'utilisateur au nouveau rôle
+            await Role.updateOne(
+              { _id: role._id },
+              { $addToSet: { users: id } }
+            );
+          }
+        } else if (!mongoose.Types.ObjectId.isValid(updates.role)) {
+          return res.status(400).json({ message: 'Invalid role ID' });
+        }
+      }
+  
+      // Hachage du mot de passe si fourni
+      if (updates.password) {
+        updates.password = await argon2.hash(updates.password.trim());
+      }
+  
+      const updatedUser = await User.findByIdAndUpdate(id, updates, {
+        new: true,
+        runValidators: true,
+      }).populate('role', 'name');
+  
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      res.status(200).json(updatedUser);
+    } catch (error) {
+      console.error('Update error:', error);
+      res.status(400).json({ message: 'Update error', error: error.message });
+    }
+  };
+exports.getUserById = async (req, res) => {
     try {
         const { id } = req.params;
   
