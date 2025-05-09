@@ -117,7 +117,7 @@ exports.updateUserProfile = async (req, res) => {
 };
 
 // 📌 **4. Upload CV and extract skills**
-exports.uploadCV = (req, res) => {
+/*exports.uploadCV = (req, res) => {
   console.log("📤 Requête reçue pour l'upload de CV");
 
   cvUpload(req, res, async (err) => {
@@ -220,6 +220,113 @@ exports.uploadCV = (req, res) => {
         cvUrl: user.cv,
         skills: user.skills,
         message: "CV successfully uploaded and skills extracted",
+      });
+    } catch (error) {
+      console.error("❌ Erreur serveur générale :", error);
+      return res.status(500).json({ message: "Server error", error: error.message });
+    }
+  });
+};*/
+// 📌 **4. Upload CV and extract skills**
+exports.uploadCV = (req, res) => {
+  console.log("📤 Requête reçue pour l'upload de CV");
+
+  cvUpload(req, res, async (err) => {
+    if (err) {
+      console.error("❌ Erreur Multer :", err);
+      return res.status(400).json({ message: "Upload failed", error: err.message });
+    }
+
+    if (!req.file) {
+      console.warn("⚠️ Aucun CV reçu");
+      return res.status(400).json({ message: "No CV provided" });
+    }
+
+    try {
+      const userId = req.user.id;
+      console.log("🔍 Recherche de l'utilisateur avec ID :", userId);
+      const user = await User.findById(userId);
+
+      if (!user) {
+        console.warn("⚠️ Utilisateur introuvable");
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let cvText = "";
+      try {
+        console.log("📜 Extraction du texte du CV...");
+        const pdfBuffer = req.file.buffer;
+        const pdfData = await pdfParse(pdfBuffer);
+        cvText = pdfData.text;
+        console.log("✅ Texte extrait complet (premier 200 chars) :", cvText.substring(0, 200) + "...");
+      } catch (pdfError) {
+        console.error("❌ Erreur lors de l'extraction du texte :", pdfError);
+        return res.status(500).json({ message: "Failed to extract text from CV", error: pdfError.message });
+      }
+
+      let cvUrl = "";
+      try {
+        console.log("📤 Upload du CV sur Cloudinary...");
+        cvUrl = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              folder: "user_cvs",
+              resource_type: "auto",
+              public_id: Date.now() + "-" + req.file.originalname,
+            },
+            (error, result) => {
+              if (error) {
+                return reject(new Error("Erreur lors de l'upload sur Cloudinary : " + error.message));
+              }
+              resolve(result.secure_url);
+            }
+          );
+          stream.end(req.file.buffer);
+        });
+        console.log("✅ CV uploadé sur Cloudinary :", cvUrl);
+      } catch (uploadError) {
+        console.error("❌ Erreur lors de l'upload sur Cloudinary :", uploadError);
+        return res.status(500).json({ message: "Failed to upload CV to Cloudinary", error: uploadError.message });
+      }
+
+      let extractedSkills = [];
+      try {
+        console.log("🤖 Exécution du script Python pour extraire les compétences...");
+        const escapedText = cvText.replace(/"/g, '\\"').replace(/\n/g, ' ');
+        const command = `python3 /app/src/scripts/extract_skills.py "${escapedText}"`;
+        console.log("📜 Commande exécutée :", command);
+        const { stdout, stderr } = await execPromise(command, { encoding: "utf8" });
+
+        if (stderr) {
+          console.error("❌ Erreur Python (stderr) :", stderr);
+          throw new Error(`Erreur Python : ${stderr}`);
+        }
+
+        console.log("✅ Sortie Python (stdout) :", stdout);
+        const jsonMatch = stdout.match(/{.*}/s);
+        if (!jsonMatch) {
+          throw new Error("Aucun JSON valide trouvé dans la sortie du script Python");
+        }
+        const cleanedStdout = jsonMatch[0];
+        const result = JSON.parse(cleanedStdout);
+        extractedSkills = result.skills || [];
+        console.log("✅ Compétences extraites :", extractedSkills);
+      } catch (scriptError) {
+        console.error("❌ Erreur complète lors de l'exécution du script Python :", scriptError);
+        return res.status(500).json({ message: "Erreur lors de l'extraction des compétences", error: scriptError.message });
+      }
+
+      // Mettre à jour uniquement avec les compétences extraites, vider si aucune compétence n'est trouvée
+      user.cv = cvUrl;
+      user.skills = extractedSkills.length > 0 ? extractedSkills : [];
+      await user.save();
+
+      console.log("✅ Compétences enregistrées dans la base de données :", user.skills);
+      console.log("✔️ CV et compétences mis à jour avec succès !");
+      res.json({
+        cvUrl: user.cv,
+        skills: user.skills,
+        message: "CV successfully uploaded" + (extractedSkills.length > 0 ? " and skills extracted" : ""),
       });
     } catch (error) {
       console.error("❌ Erreur serveur générale :", error);

@@ -11,8 +11,8 @@ SKILL_KEYWORDS = [
 ]
 
 def clean_text(text):
-    """Nettoie le texte en normalisant les espaces, les caractères spéciaux et en convertissant en minuscules."""
-    text = re.sub(r'[,\s/]+', ' ', text.lower())
+    """Nettoie le texte en normalisant les espaces et les séparateurs, et en convertissant en minuscules."""
+    text = re.sub(r'[,\s/]+', ' ', text.lower())  # Remplace virgules, espaces et barres obliques par un espace
     text = re.sub(r'\.js', '.js', text)  # Préserver node.js, vue.js, etc.
     text = re.sub(r'mysql', 'mysql', text)  # Normaliser MySQL
     text = re.sub(r'\.net', '.net', text)  # Normaliser .NET
@@ -20,21 +20,27 @@ def clean_text(text):
 
 def extract_skills(text):
     if not text:
+        print("DEBUG: Texte vide", file=sys.stderr)
         return []
     
     cleaned_text = clean_text(text)
-    skills = set()
+    print(f"DEBUG: Texte nettoyé (premier 200 chars) : {cleaned_text[:200]}", file=sys.stderr)
 
-    # Recherche directe des mots-clés
+    skills = set()
+    # Séparer les mots et gérer les listes séparées par des barres obliques
+    words = re.findall(r'\b\w+(\.\w+)?\b', cleaned_text)  # Capture les mots avec extensions comme .js ou .net
+    print(f"DEBUG: Mots extraits : {words[:50]}", file=sys.stderr)
+
     for keyword in SKILL_KEYWORDS:
-        if keyword in cleaned_text:
+        if keyword in words:  # Vérifie si le mot-clé exact est dans la liste des mots
+            print(f"DEBUG: Compétence trouvée : {keyword}", file=sys.stderr)
             skills.add(keyword)
 
-    return sorted(list(skills))  # Retourner une liste triée pour la cohérence
+    print(f"DEBUG: Compétences finales : {sorted(list(skills))}", file=sys.stderr)
+    return sorted(list(skills))
 
 if __name__ == "__main__":
     try:
-        # Lire le texte depuis les arguments de la ligne de commande
         if len(sys.argv) < 2:
             print(json.dumps({"error": "Texte manquant"}), file=sys.stderr)
             sys.exit(1)
