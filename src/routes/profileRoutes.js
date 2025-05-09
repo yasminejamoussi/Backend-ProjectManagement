@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const profileController = require("../controllers/ProfileController"); // Vérifie bien ce chemin !
-const { uploadProfileImage, getUserProfile, updateUserProfile } = require("../controllers/ProfileController");
+const { uploadProfileImage, getUserProfile, updateUserProfile,uploadCV } = require("../controllers/ProfileController");
 
 // Vérification temporaire pour voir si le controller est bien chargé
 console.log("🔎 ProfileController:", profileController);
