@@ -227,7 +227,7 @@ exports.updateUserProfile = async (req, res) => {
     }
   });
 };*/
-// 📌 **4. Upload CV and extract skills**
+
 exports.uploadCV = (req, res) => {
   console.log("📤 Requête reçue pour l'upload de CV");
 
