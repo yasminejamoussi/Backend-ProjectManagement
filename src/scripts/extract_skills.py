@@ -27,12 +27,11 @@ def extract_skills(text):
     print(f"DEBUG: Texte nettoyé (premier 200 chars) : {cleaned_text[:200]}", file=sys.stderr)
 
     skills = set()
-    # Séparer les mots et gérer les listes séparées par des barres obliques
-    words = re.findall(r'\b\w+(\.\w+)?\b', cleaned_text)  # Capture les mots avec extensions comme .js ou .net
-    print(f"DEBUG: Mots extraits : {words[:50]}", file=sys.stderr)
-
+    # Recherche directe des mots-clés dans le texte nettoyé
     for keyword in SKILL_KEYWORDS:
-        if keyword in words:  # Vérifie si le mot-clé exact est dans la liste des mots
+        # Créer une regex pour le mot-clé, en s'assurant qu'il est entouré de limites de mots
+        pattern = r'\b' + re.escape(keyword) + r'\b'
+        if re.search(pattern, cleaned_text):
             print(f"DEBUG: Compétence trouvée : {keyword}", file=sys.stderr)
             skills.add(keyword)
 
