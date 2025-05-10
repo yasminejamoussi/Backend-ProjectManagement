@@ -593,7 +593,7 @@ exports.registerFaceLabel = async (req, res) => {
     }
 };
 // 1. Envoyer le code de vérification
-exports.sendResetCode = async (req, res) => {
+/*exports.sendResetCode = async (req, res) => {
     try {
       const { email } = req.body;
   
@@ -628,9 +628,55 @@ exports.sendResetCode = async (req, res) => {
       console.error("Error sending reset code:", error);
       res.status(500).json({ message: "Server error" });
     }
-  };
+  };*/
 
-// 2. Vérifier le code de réinitialisation
+  exports.sendResetCode = async (req, res) => {
+    try {
+      const { email } = req.body;
+  
+      // Validate email
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+  
+      // Check if the email exists in the database
+      const user = await User.findOne({ email });
+  
+      if (!user) {
+        return res.status(404).json({ message: "Email not found" });
+      }
+  
+      // Generate a 6-digit reset code
+      const resetCode = Math.floor(10000 + Math.random() * 90000).toString();
+      const resetCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // Expires in 10 minutes
+  
+      user.resetCode = resetCode;
+      user.resetCodeExpires = resetCodeExpires;
+      await user.save();
+  
+      // Send the reset code via email
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Password Reset Code",
+        text: `Your password reset code is: ${resetCode}`,
+      };
+  
+      await transporter.sendMail(mailOptions);
+  
+      res.status(200).json({ message: "Reset code sent to email" });
+    } catch (error) {
+      console.error("Error sending reset code:", error);
+      if (error.code === "EAUTH") {
+        return res.status(500).json({
+          message: "Email authentication failed",
+          details: "Check EMAIL_USER and EMAIL_PASSWORD environment variables",
+        });
+      }
+      res.status(500).json({ message: "Server error", details: error.message });
+    }
+  };
+  // 2. Vérifier le code de réinitialisation
 exports.verifyResetCode = async (req, res) => {
     try {
         const { email, resetCode } = req.body;
