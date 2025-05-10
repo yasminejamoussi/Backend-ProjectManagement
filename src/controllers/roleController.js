@@ -117,6 +117,10 @@ exports.assignRoleToUser = async (req, res) => {
       return res.status(200).json({ message: 'User already has this role', user, role });
     }
 
+    // Check if the user is moving from Guest to a non-Guest role
+    const wasGuest = user.role && user.role.name === 'Guest';
+    const isNowNonGuest = roleName !== 'Guest';
+
     // Update role assignments
     const previousRole = await Role.findById(user.role);
     if (previousRole) {
@@ -137,27 +141,29 @@ exports.assignRoleToUser = async (req, res) => {
 
     console.log(`User role updated: ${user.email} to ${roleName}`);
 
-    // Send email
-    try {
-      const subject = 'Your New Role Assignment in Orkestra';
-      const text = `Dear ${user.firstname || 'User'},\n\nYou have been assigned the role of ${roleName} in Orkestra. Enjoy your new privileges!\n\nBest regards,\nThe Orkestra Team`;
-      const html = `
-        <h2>Welcome to Your New Role!</h2>
-        <p>Dear ${user.firstname || 'User'},</p>
-        <p>You have been assigned the role of <strong>${roleName}</strong> in Orkestra.</p>
-        <p>Enjoy your new privileges and explore the platform!</p>
-        <p>Best regards,<br>The Orkestra Team</p>
-      `;
-      await sendRoleEmail(user.email, subject, text, html, userId.toString());
-      console.log(`Role email sent to ${user.email} for role ${roleName}`);
-    } catch (emailError) {
-      console.error('Error sending role email:', emailError);
-      return res.status(200).json({
-        message: 'Role assigned successfully, but failed to send email',
-        user,
-        role,
-        emailError: emailError.message,
-      });
+    // Send email only if transitioning from Guest to non-Guest role
+    if (wasGuest && isNowNonGuest) {
+      try {
+        const subject = 'Your New Role Assignment in Orkestra';
+        const text = `Dear ${user.firstname || 'User'},\n\nYou have been assigned the role of ${roleName} in Orkestra. Enjoy your new privileges!\n\nBest regards,\nThe Orkestra Team`;
+        const html = `
+          <h2>Welcome to Your New Role!</h2>
+          <p>Dear ${user.firstname || 'User'},</p>
+          <p>You have been assigned the role of <strong>${roleName}</strong> in Orkestra.</p>
+          <p>Enjoy your new privileges and explore the platform!</p>
+          <p>Best regards,<br>The Orkestra Team</p>
+        `;
+        await sendRoleEmail(user.email, subject, text, html, userId.toString());
+        console.log(`Role email sent to ${user.email} for role ${roleName}`);
+      } catch (emailError) {
+        console.error('Error sending role email:', emailError);
+        return res.status(200).json({
+          message: 'Role assigned successfully, but failed to send email',
+          user,
+          role,
+          emailError: emailError.message,
+        });
+      }
     }
 
     res.status(200).json({ message: 'Role assigned successfully', user, role });
