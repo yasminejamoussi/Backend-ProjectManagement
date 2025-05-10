@@ -1289,3 +1289,83 @@ const roleHierarchy = {
   }
 };
 
+// Generate Google OAuth URL
+exports.getGoogleAuthUrl = (req, res) => {
+  try {
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: [
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+      ],
+    });
+    console.log("Generated Google Auth URL:", authUrl);
+    res.json({ authUrl });
+  } catch (err) {
+    console.error("Error generating Google Auth URL:", err);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// Google Auth Callback
+exports.googleAuthCallback = async (req, res) => {
+  try {
+    const code = req.query.code;
+    console.log("Received Authorization Code in Callback:", code);
+
+    if (!code) {
+      console.error("Error: Authorization code is missing in callback");
+      return res.status(400).json({ message: "Authorization code is required" });
+    }
+
+    const { tokens } = await oauth2Client.getToken(code);
+    console.log("Google Token Response:", tokens);
+
+    oauth2Client.setCredentials(tokens);
+    const userRes = await axios.get(
+      `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${tokens.access_token}`
+    );
+    console.log("Google User Info:", userRes.data);
+
+    const { email, name, id: googleId } = userRes.data;
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const guestRole = await Role.findOne({ name: 'Guest' });
+      if (!guestRole) {
+        console.error("Error: 'Guest' role not found");
+        return res.status(500).json({ message: "Internal Server Error: Guest role not found" });
+      }
+      user = await User.create({
+        firstname: name.split(' ')[0],
+        lastname: name.split(' ')[1] || '',
+        email,
+        phone: '00000000',
+        googleId,
+        role: guestRole._id,
+      });
+      console.log("New user created:", user);
+    } else {
+      console.log("Existing user found:", user);
+    }
+
+    const { _id } = user;
+    const token = jwt.sign({ _id, email }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    });
+
+    console.log("Generated JWT Token:", token);
+
+    // Redirect to the frontend dashboard with the token and email as query parameters
+    const frontendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://frontend-projectmanagement.onrender.com'
+      : 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/dashboard?token=${token}&email=${email}`);
+  } catch (err) {
+    console.error("Google Auth Callback Error:", err);
+    const frontendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://frontend-projectmanagement.onrender.com'
+      : 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/signin?error=google-auth-failed`);
+  }
+};
