@@ -714,28 +714,6 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
-
-/*exports.getUsers = async (req, res) => {
-    try {
-      // Récupérer les rôles Team Leader et Team Member
-      const teamRoles = await Role.find({ name: { $in: ['Team Leader', 'Team Member'] } });
-      const teamRoleIds = teamRoles.map(role => role._id);
-  
-      // Récupérer les utilisateurs avec ces rôles
-      const users = await User.find({ role: { $in: teamRoleIds } }).populate('role', 'name');
-  
-      // Si aucun utilisateur n'est trouvé
-      if (!users || users.length === 0) {
-        return res.status(404).json({ message: "No users with role Team Leader or Team Member found" });
-      }
-  
-      // Renvoi des utilisateurs trouvés
-      res.status(200).json(users);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      res.status(500).json({ message: "Server error" });
-    }
-  };*/
   
   exports.getUsers = async (req, res) => {
     try {
