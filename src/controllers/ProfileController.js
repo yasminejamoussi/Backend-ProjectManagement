@@ -252,11 +252,15 @@ exports.uploadCV = (req, res) => {
         return res.status(404).json({ message: "User not found" });
       }
 
+      const pdfBuffer = req.file.buffer;
+      if (!pdfBuffer || pdfBuffer.length === 0) {
+        throw new Error("Invalid or empty PDF file");
+      }
+      console.log("DEBUG: Taille du buffer PDF :", pdfBuffer.length);
+
       let cvText = "";
       try {
         console.log("📜 Extraction du texte du CV...");
-        const pdfBuffer = req.file.buffer;
-        console.log("DEBUG: Taille du buffer PDF :", pdfBuffer.length);
         const pdfData = await pdfParse(pdfBuffer);
         cvText = pdfData.text;
         console.log("✅ Texte extrait complet (premier 200 chars) :", cvText.substring(0, 200) + "...");
@@ -282,7 +286,7 @@ exports.uploadCV = (req, res) => {
               resolve(result.secure_url);
             }
           );
-          stream.end(req.file.buffer);
+          stream.end(pdfBuffer);
         });
         console.log("✅ CV uploadé sur Cloudinary :", cvUrl);
       } catch (uploadError) {
@@ -309,7 +313,7 @@ exports.uploadCV = (req, res) => {
         if (!jsonMatch) {
           throw new Error("Aucun JSON valide trouvé dans la sortie du script Python");
         }
-        const cleanedStdout = jsonMatch[0];
+        const cleanedStdout = jsonMatch[0].trim();
         const result = JSON.parse(cleanedStdout);
         extractedSkills = result.skills || [];
         console.log("✅ Compétences extraites :", extractedSkills);
@@ -319,7 +323,7 @@ exports.uploadCV = (req, res) => {
       }
 
       user.cv = cvUrl;
-      user.skills = extractedSkills.length > 0 ? extractedSkills : [];
+      user.skills = extractedSkills.length > 0 ? extractedSkills : user.skills;
       await user.save();
 
       console.log("✅ Compétences enregistrées dans la base de données :", user.skills);
