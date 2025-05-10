@@ -501,61 +501,77 @@ exports.loginWithFace = async (req, res) => {
 };
 // Google Auth
 exports.googleAuth = async (req, res) => {
-    const code = req.query.code;
-    console.log("Received Authorization Code:", code);
+  const code = req.query.code;
 
-    try {
-        if (!code) {
-            console.error("Error: Authorization code is missing");
-            return res.status(400).json({ message: "Authorization code is required" });
-        }
+  // Cas 1 : Initiation du flux OAuth (pas de code dans la requête)
+  if (!code) {
+      try {
+          const authUrl = oauth2Client.generateAuthUrl({
+              access_type: 'offline',
+              scope: [
+                  'https://www.googleapis.com/auth/userinfo.email',
+                  'https://www.googleapis.com/auth/userinfo.profile',
+              ],
+          });
+          console.log("Generated Google Auth URL:", authUrl);
+          // Rediriger l'utilisateur vers l'URL d'authentification Google
+          return res.redirect(authUrl);
+      } catch (err) {
+          console.error("Error generating Google Auth URL:", err);
+          return res.status(500).json({ message: "Internal Server Error" });
+      }
+  }
 
-        const googleRes = await oauth2Client.getToken(code);
-        console.log("Google Token Response:", googleRes.tokens);
+  // Cas 2 : Callback après authentification (code présent dans la requête)
+  console.log("Received Authorization Code:", code);
 
-        oauth2Client.setCredentials(googleRes.tokens);
-        const userRes = await axios.get(
-           ` https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${googleRes.tokens.access_token}`
-        );
-        console.log("Google User Info:", userRes.data);
+  try {
+      const googleRes = await oauth2Client.getToken(code);
+      console.log("Google Token Response:", googleRes.tokens);
 
-        const { email, name, id: googleId } = userRes.data;
-        let user = await User.findOne({ email });
+      oauth2Client.setCredentials(googleRes.tokens);
+      const userRes = await axios.get(
+          `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${googleRes.tokens.access_token}`
+      );
+      console.log("Google User Info:", userRes.data);
 
-        if (!user) {
-            const guestRole = await Role.findOne({ name: 'Guest' });
+      const { email, name, id: googleId } = userRes.data;
+      let user = await User.findOne({ email });
 
-            if (!guestRole) {
-                console.error("Error: 'Guest' role not found");
-                return res.status(500).json({ message: "Internal Server Error: Guest role not found" });
-            }
-            user = await User.create({
-                firstname: name.split(' ')[0],
-                lastname: name.split(' ')[1] || '',
-                email,
-                phone :'00000000',
-                googleId,
-                role: guestRole._id, // You can assign roles based on your requirements
-            });
-            console.log("New user created:", user);
-        } else {
-            console.log("Existing user found:", user);
-        }
+      if (!user) {
+          const guestRole = await Role.findOne({ name: 'Guest' });
 
-        const { _id } = user;
-        const token = jwt.sign({ _id, email }, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_TIMEOUT || 3600,
-        });
+          if (!guestRole) {
+              console.error("Error: 'Guest' role not found");
+              return res.status(500).json({ message: "Internal Server Error: Guest role not found" });
+          }
+          user = await User.create({
+              firstname: name.split(' ')[0],
+              lastname: name.split(' ')[1] || '',
+              email,
+              phone: '00000000',
+              googleId,
+              role: guestRole._id,
+          });
+          console.log("New user created:", user);
+      } else {
+          console.log("Existing user found:", user);
+      }
 
-        console.log("Generated JWT Token:", token);
+      const { _id } = user;
+      const token = jwt.sign({ _id, email }, process.env.JWT_SECRET, {
+          expiresIn: process.env.JWT_TIMEOUT || 3600,
+      });
 
-        res.status(200).json({ message: "success", token, user });
-    } catch (err) {
-        console.error("Google Auth Error:", err);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
+      console.log("Generated JWT Token:", token);
+
+      // Rediriger vers le frontend avec le token et l'email
+      return res.redirect(`https://frontend-projectmanagement.onrender.com/dashboard?token=${token}&email=${email}`);
+  } catch (err) {
+      console.error("Google Auth Error:", err);
+      return res.status(500).json({ message: "Internal Server Error" });
+  }
 };
-
 
 const transporter = nodemailer.createTransport({
     service: "Gmail",
