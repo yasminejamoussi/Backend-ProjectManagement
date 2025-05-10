@@ -17,8 +17,8 @@ const sendRoleEmail = async (to, subject, text, html, userId) => {
     }
 
     // Validate environment variables
-    const emailUser = process.env.EMAIL_USERR || 'orkestra.notifications@gmail.com';
-    const emailPass = process.env.EMAIL_PASSR || 'zzgf zmys jzrv thtw';
+    const emailUser = process.env.EMAIL_USER || 'orkestra.notifications@gmail.com';
+    const emailPass = process.env.EMAIL_PASS || 'zzgf zmys jzrv thtw';
     if (!emailUser || !emailPass) {
       throw new Error('Missing EMAIL_USER or EMAIL_PASS in environment variables');
     }

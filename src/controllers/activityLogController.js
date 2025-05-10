@@ -10,8 +10,8 @@ const Role = require('../models/Role');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'ranimsboui2003@gmail.com',
-    pass: 'lgiw nivr njmi xygc',
+    user: 'orkestra.notifications@gmail.com',
+    pass: 'zzgf zmys jzrv thtw',
   },
   pool: true, // Enable connection pooling for faster email sending
 });
@@ -235,7 +235,7 @@ Project Management System
       `;
 
       return transporter.sendMail({
-        from: 'ranimsboui2003@gmail.com',
+        from: 'orkestra.notifications@gmail.com',
         to: admin.email,
         subject: `🚨 Anomaly Alert - ${anomalyType} by ${role}`,
         text: message,
@@ -280,7 +280,7 @@ Project Management System
     `;
 
     await transporter.sendMail({
-      from: 'ranimsboui2003@gmail.com',
+      from: 'orkestra.notifications@gmail.com',
       to: user.email,
       subject: '🚨 Anomaly Alert - Excessive Activity Detected',
       text: message,
@@ -326,7 +326,7 @@ Project Management System
     `;
 
     await transporter.sendMail({
-      from: 'ranimsboui2003@gmail.com',
+      from: 'orkestra.notifications@gmail.com',
       to: user.email,
       subject: '🚨 Anomaly Alert - Excessive Activity Detected',
       text: userMessage,
@@ -375,7 +375,7 @@ Project Management System
     `;
 
     await transporter.sendMail({
-      from: 'ranimsboui2003@gmail.com',
+      from: 'orkestra.notifications@gmail.com',
       to: user.email,
       subject: '🚨 Warning: Excessive Task Updates Detected',
       text: userMessage,
@@ -413,7 +413,7 @@ Project Management System
       `;
 
       return transporter.sendMail({
-        from: 'ranimsboui2003@gmail.com',
+        from: 'orkestra.notifications@gmail.com',
         to: recipient.email,
         subject: '🚨 Anomaly Alert - Excessive Task Updates by Team Member',
         text: message,
