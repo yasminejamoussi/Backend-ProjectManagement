@@ -566,7 +566,7 @@ exports.googleAuth = async (req, res) => {
       console.log("Generated JWT Token:", token);
 
       // Rediriger vers le frontend avec le token et l'email
-      return res.redirect(`https://frontend-projectmanagement.onrender.com/dashboard?token=${token}&email=${email}`);
+      return res.redirect(`https://frontend-projectmanagement-5cfm.onrender.com/dashboard?token=${token}&email=${email}`);
   } catch (err) {
       console.error("Google Auth Error:", err);
       return res.status(500).json({ message: "Internal Server Error" });
