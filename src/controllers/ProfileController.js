@@ -6,6 +6,7 @@ const pdfParse = require('pdf-parse');
 const pdfjsLib = require('pdfjs-dist');
 const { exec } = require("child_process");
 const util = require("util");
+const path = require('path'); // Add this line
 
 // Promisify exec pour une gestion asynchrone
 const execPromise = util.promisify(exec);
@@ -253,79 +254,79 @@ exports.uploadCV = (req, res) => {
       }
 
       // Extraction du texte du CV
-      /*let cvText = "";
+      let cvText = "";
       try {
-        console.log("📜 Extraction du texte du CV...");
+        console.log("📜 Extraction du texte du CV avec pdf-parse...");
         const pdfBuffer = req.file.buffer;
-        const pdfData = await pdfParse(pdfBuffer);
-        cvText = pdfData.text;
-        console.log("✅ Texte extrait complet :", cvText.substring(0, 200) + "...");
-      } catch (pdfError) {
-        console.error("❌ Erreur lors de l'extraction du texte :", pdfError);
-        return res.status(500).json({ message: "Failed to extract text from CV", error: pdfError.message });
-      }*/  
+        console.log("📊 Taille du buffer PDF :", pdfBuffer.length);
 
-        let cvText = "";
-        try {
-          console.log("📜 Extraction du texte du CV avec pdf-parse...");
-          const pdfBuffer = req.file.buffer;
-          console.log("📊 Taille du buffer PDF :", pdfBuffer.length);
-        
-          const pdfData = await pdfParse(pdfBuffer, {
-            max: 10, // Limit to first 10 pages
-            ignoreErrors: true, // Ignore minor errors
-            pdfjsLib: pdfjsLib // Explicitly use the installed pdfjs-dist
-          });
-        
-          cvText = pdfData.text || "";
-          console.log("✅ Texte extrait complet par pdf-parse :", cvText);
-          console.log("📏 Longueur du texte extrait :", cvText.length);
-          console.log("📑 Pages extraites :", pdfData.numpages);
-          console.log("📋 Métadonnées PDF :", pdfData.info);
-          if (!cvText || cvText.trim().length === 0) {
-            console.warn("⚠️ Aucun texte significatif extrait par pdf-parse. Le PDF peut avoir une structure incompatible.");
+        const pdfData = await pdfParse(pdfBuffer, {
+          max: 10,
+          ignoreErrors: true,
+          pdfjsLib: pdfjsLib
+        });
+
+        cvText = pdfData.text || "";
+        console.log("✅ Texte extrait complet par pdf-parse :", cvText);
+        console.log("📏 Longueur du texte extrait :", cvText.length);
+        console.log("📑 Pages extraites :", pdfData.numpages);
+        console.log("📋 Métadonnées PDF :", pdfData.info);
+
+        if (!cvText || cvText.trim().length === 0) {
+          console.warn("⚠️ Aucun texte significatif extrait par pdf-parse. Tentative avec pdftotext...");
+
+          const tempPdfPath = path.join(__dirname, `temp_pdf_${Date.now()}.pdf`);
+          const tempTxtPath = path.join(__dirname, `temp_txt_${Date.now()}.txt`);
+
+          try {
+            await fs.writeFile(tempPdfPath, pdfBuffer);
+            console.log("📝 PDF temporaire écrit :", tempPdfPath);
+
+            const command = `pdftotext ${tempPdfPath} ${tempTxtPath}`;
+            console.log("📜 Commande pdftotext exécutée :", command);
+            await execPromise(command);
+
+            cvText = await fs.readFile(tempTxtPath, 'utf8');
+            console.log("✅ Texte extrait par pdftotext :", cvText);
+            console.log("📏 Longueur du texte extrait par pdftotext :", cvText.length);
+          } catch (pdftotextError) {
+            console.error("❌ Erreur lors de l'extraction avec pdftotext :", pdftotextError);
+            throw pdftotextError;
+          } finally {
+            await Promise.all([
+              fs.unlink(tempPdfPath).catch(() => {}),
+              fs.unlink(tempTxtPath).catch(() => {})
+            ]);
           }
-        } catch (pdfError) {
-          console.error("❌ Erreur détaillée avec pdf-parse :", pdfError);
-          console.error("📜 Stack trace :", pdfError.stack);
-          return res.status(500).json({ 
-            message: "Failed to extract text from CV with pdf-parse", 
-            error: pdfError.message,
-            stack: pdfError.stack
-          });
         }
-         
+      } catch (pdfError) {
+        console.error("❌ Erreur détaillée avec pdf-parse :", pdfError);
+        console.error("📜 Stack trace :", pdfError.stack);
+        return res.status(500).json({ 
+          message: "Failed to extract text from CV with pdf-parse", 
+          error: pdfError.message,
+          stack: pdfError.stack
+        });
+      }
 
-      // Exécuter le script Python extract_skills.py pour extraire les compétences
-      /*let extractedSkills = [];
+      // Upload du CV sur Cloudinary
+      let cvUrl = "";
       try {
-        console.log("🤖 Exécution du script Python pour extraire les compétences...");
-        const escapedText = cvText.replace(/"/g, '\\"').replace(/\n/g, ' ');
-        const command = `python3 /app/src/scripts/extract_skills.py "${escapedText}"`;
-        console.log("📜 Commande exécutée :", command);
-        const { stdout, stderr } = await execPromise(command, { encoding: "utf8" });
+        console.log("📤 Upload du CV sur Cloudinary...");
+        cvUrl = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: "user_cvs", resource_type: "auto", public_id: Date.now() + "-" + req.file.originalname },
+            (error, result) => (error ? reject(error) : resolve(result.secure_url))
+          );
+          stream.end(req.file.buffer);
+        });
+        console.log("✅ CV uploadé sur Cloudinary :", cvUrl);
+      } catch (uploadError) {
+        console.error("❌ Erreur lors de l'upload sur Cloudinary :", uploadError);
+        return res.status(500).json({ message: "Failed to upload CV to Cloudinary", error: uploadError.message });
+      }
 
-        if (stderr) {
-          console.error("❌ Erreur Python (stderr) :", stderr);
-          throw new Error(`Erreur Python : ${stderr}`);
-        }
-
-        // Nettoyer stdout pour extraire uniquement le JSON
-        console.log("✅ Sortie Python (stdout) :", stdout);
-        const jsonMatch = stdout.match(/{.*}/s); // Extraire la première occurrence de JSON
-        if (!jsonMatch) {
-          throw new Error("Aucun JSON valide trouvé dans la sortie du script Python");
-        }
-        const cleanedStdout = jsonMatch[0];
-        const result = JSON.parse(cleanedStdout);
-        extractedSkills = result.skills || [];
-        console.log("✅ Compétences extraites :", extractedSkills);
-      } catch (scriptError) {
-        console.error("❌ Erreur complète lors de l'exécution du script Python :", scriptError);
-        return res.status(500).json({ message: "Erreur lors de l'extraction des compétences", error: scriptError.message });
-      }*/
-// In your backend code (exports.uploadCV)
-   // Exécution du script Python
+      // Exécution du script Python
       let extractedSkills = [];
       try {
         console.log("🤖 Exécution du script Python pour extraire les compétences...");
@@ -335,9 +336,9 @@ exports.uploadCV = (req, res) => {
 
         const command = `python3 /app/src/scripts/extract_skills.py < ${tempFilePath}`;
         console.log("📜 Commande exécutée :", command);
-        const { stdout, stderr } = await execPromise(command, { encoding: "utf8" });
+        const { stdout, stderr } = await execPromise(command, { encoding: "utf8", timeout: 10000 });
 
-        await fs.unlink(tempFilePath).catch(() => {}); // Clean up temp file
+        await fs.unlink(tempFilePath).catch(() => {});
 
         if (stderr) {
           console.error("❌ Erreur Python (stderr) :", stderr);
@@ -357,18 +358,15 @@ exports.uploadCV = (req, res) => {
         console.error("❌ Erreur complète lors de l'exécution du script Python :", scriptError);
         return res.status(500).json({ message: "Erreur lors de l'extraction des compétences", error: scriptError.message });
       }
-      // Mise à jour du CV et des compétences
+
+      // Mise à jour de l'utilisateur
       user.cv = cvUrl;
-      user.skills = extractedSkills.length > 0 ? extractedSkills : user.skills;
+      user.skills = extractedSkills;
       await user.save();
 
       console.log("✅ Compétences enregistrées dans la base de données :", user.skills);
       console.log("✔️ CV et compétences mis à jour avec succès !");
-      res.json({
-        cvUrl: user.cv,
-        skills: user.skills,
-        message: "CV successfully uploaded and skills extracted",
-      });
+      res.json({ cvUrl: user.cv, skills: user.skills, message: "CV successfully uploaded and skills extracted" });
     } catch (error) {
       console.error("❌ Erreur serveur générale :", error);
       return res.status(500).json({ message: "Server error", error: error.message });
