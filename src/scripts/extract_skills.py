@@ -25,20 +25,19 @@ def extract_skills(text):
     cleaned_text = clean_text(text)
     skills = set()
 
-    # Recherche directe des mots-clés
+    # Recherche des mots-clés avec des limites de mots pour éviter les faux positifs
     for keyword in SKILL_KEYWORDS:
-        if keyword in cleaned_text:
+        # Utiliser une expression régulière pour s'assurer que le mot-clé est un mot distinct
+        pattern = r'\b' + re.escape(keyword) + r'\b'
+        if re.search(pattern, cleaned_text):
             skills.add(keyword)
 
     return sorted(list(skills))  # Retourner une liste triée pour la cohérence
 
 if __name__ == "__main__":
     try:
-        # Lire le texte depuis les arguments de la ligne de commande
-        if len(sys.argv) < 2:
-            print(json.dumps({"error": "Texte manquant"}), file=sys.stderr)
-            sys.exit(1)
-        text = sys.argv[1]
+        # Lire le texte depuis stdin (au lieu des arguments de la ligne de commande)
+        text = sys.stdin.read()
         skills = extract_skills(text)
         print(json.dumps({"skills": skills}))  # Uniquement la sortie JSON
     except Exception as e:
