@@ -278,30 +278,26 @@ exports.uploadCV = (req, res) => {
         }
 
       // Upload manuel du fichier sur Cloudinary avec une Promise
-      let cvUrl = "";
-      try {
-        console.log("📤 Upload du CV sur Cloudinary...");
-        cvUrl = await new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            {
-              folder: "user_cvs",
-              resource_type: "auto",
-              public_id: Date.now() + "-" + req.file.originalname,
-            },
-            (error, result) => {
-              if (error) {
-                return reject(new Error("Erreur lors de l'upload sur Cloudinary : " + error.message));
-              }
-              resolve(result.secure_url);
-            }
-          );
-          stream.end(req.file.buffer);
-        });
-        console.log("✅ CV uploadé sur Cloudinary :", cvUrl);
-      } catch (uploadError) {
-        console.error("❌ Erreur lors de l'upload sur Cloudinary :", uploadError);
-        return res.status(500).json({ message: "Failed to upload CV to Cloudinary", error: uploadError.message });
-      }
+      let cvText = "";
+try {
+  console.log("📜 Extraction du texte du CV...");
+  const pdfBuffer = req.file.buffer;
+  console.log("📊 Taille du buffer PDF :", pdfBuffer.length); // Check buffer size
+  const pdfData = await pdfParse(pdfBuffer, { max: 10 }); // Limit to first 10 pages for testing
+  cvText = pdfData.text;
+  console.log("✅ Texte extrait complet :", cvText);
+  console.log("📏 Longueur du texte extrait :", cvText.length);
+  if (!cvText || cvText.trim().length === 0) {
+    console.warn("⚠️ Aucun texte significatif extrait. Le PDF peut être une image ou corrompu.");
+  }
+} catch (pdfError) {
+  console.error("❌ Erreur détaillée lors de l'extraction du texte :", pdfError);
+  return res.status(500).json({ 
+    message: "Failed to extract text from CV", 
+    error: pdfError.message,
+    stack: pdfError.stack // Include stack trace for more details
+  });
+}
 
       // Exécuter le script Python extract_skills.py pour extraire les compétences
       /*let extractedSkills = [];
@@ -332,33 +328,33 @@ exports.uploadCV = (req, res) => {
         return res.status(500).json({ message: "Erreur lors de l'extraction des compétences", error: scriptError.message });
       }*/
 // In your backend code (exports.uploadCV)
-      let extractedSkills = [];
-      try {
-        console.log("🤖 Exécution du script Python pour extraire les compétences...");
-        const escapedText = cvText.replace(/"/g, '\\"').replace(/\n/g, ' ');
-        console.log("📝 Texte envoyé au script Python :", escapedText); // Log the exact text being sent
-        const command = `python3 /app/src/scripts/extract_skills.py "${escapedText}"`;
-        console.log("📜 Commande exécutée :", command);
-        const { stdout, stderr } = await execPromise(command, { encoding: "utf8" });
+    let extractedSkills = [];
+    try {
+      console.log("🤖 Exécution du script Python pour extraire les compétences...");
+      const escapedText = cvText.replace(/"/g, '\\"').replace(/\n/g, ' ');
+      console.log("📝 Texte envoyé au script Python :", escapedText); // Log the exact text being sent
+      const command = `python3 /app/src/scripts/extract_skills.py "${escapedText}"`;
+      console.log("📜 Commande exécutée :", command);
+      const { stdout, stderr } = await execPromise(command, { encoding: "utf8" });
 
-        if (stderr) {
-          console.error("❌ Erreur Python (stderr) :", stderr);
-          throw new Error(`Erreur Python : ${stderr}`);
-        }
-
-        console.log("✅ Sortie Python brute (stdout) :", stdout); // Log the raw output
-        const jsonMatch = stdout.match(/{.*}/s);
-        if (!jsonMatch) {
-          throw new Error("Aucun JSON valide trouvé dans la sortie du script Python");
-        }
-        const cleanedStdout = jsonMatch[0];
-        const result = JSON.parse(cleanedStdout);
-        extractedSkills = result.skills || [];
-        console.log("✅ Compétences extraites :", extractedSkills);
-      } catch (scriptError) {
-        console.error("❌ Erreur complète lors de l'exécution du script Python :", scriptError);
-        return res.status(500).json({ message: "Erreur lors de l'extraction des compétences", error: scriptError.message });
+      if (stderr) {
+        console.error("❌ Erreur Python (stderr) :", stderr);
+        throw new Error(`Erreur Python : ${stderr}`);
       }
+
+      console.log("✅ Sortie Python brute (stdout) :", stdout); // Log the raw output
+      const jsonMatch = stdout.match(/{.*}/s);
+      if (!jsonMatch) {
+        throw new Error("Aucun JSON valide trouvé dans la sortie du script Python");
+      }
+      const cleanedStdout = jsonMatch[0];
+      const result = JSON.parse(cleanedStdout);
+      extractedSkills = result.skills || [];
+      console.log("✅ Compétences extraites :", extractedSkills);
+    } catch (scriptError) {
+      console.error("❌ Erreur complète lors de l'exécution du script Python :", scriptError);
+      return res.status(500).json({ message: "Erreur lors de l'extraction des compétences", error: scriptError.message });
+    }
       // Mise à jour du CV et des compétences
       user.cv = cvUrl;
       user.skills = extractedSkills.length > 0 ? extractedSkills : user.skills;
