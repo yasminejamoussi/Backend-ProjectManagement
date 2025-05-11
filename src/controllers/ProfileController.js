@@ -2,7 +2,8 @@ const User = require("../models/User");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("cloudinary").v2;
 const multer = require("multer");
-const pdfParse = require("pdf-parse");
+const pdfParse = require('pdf-parse');
+const pdfjsLib = require('pdfjs-dist');
 const { exec } = require("child_process");
 const util = require("util");
 
@@ -269,17 +270,18 @@ exports.uploadCV = (req, res) => {
           console.log("📜 Extraction du texte du CV avec pdf-parse...");
           const pdfBuffer = req.file.buffer;
           console.log("📊 Taille du buffer PDF :", pdfBuffer.length);
+        
           const pdfData = await pdfParse(pdfBuffer, {
             max: 10, // Limit to first 10 pages
-            ignoreErrors: true, // Attempt to ignore minor parsing errors
-            version: 'v2.0.0' // Force a specific version if supported (adjust based on your pdf-parse version)
+            ignoreErrors: true, // Ignore minor errors
+            pdfjsLib: pdfjsLib // Explicitly use the installed pdfjs-dist
           });
+        
           cvText = pdfData.text || "";
           console.log("✅ Texte extrait complet par pdf-parse :", cvText);
           console.log("📏 Longueur du texte extrait :", cvText.length);
           console.log("📑 Pages extraites :", pdfData.numpages);
           console.log("📋 Métadonnées PDF :", pdfData.info);
-          console.log("📜 Version PDF utilisée :", pdfData.pdfversion);
           if (!cvText || cvText.trim().length === 0) {
             console.warn("⚠️ Aucun texte significatif extrait par pdf-parse. Le PDF peut avoir une structure incompatible.");
           }
@@ -292,6 +294,7 @@ exports.uploadCV = (req, res) => {
             stack: pdfError.stack
           });
         }
+         
 
       // Exécuter le script Python extract_skills.py pour extraire les compétences
       /*let extractedSkills = [];

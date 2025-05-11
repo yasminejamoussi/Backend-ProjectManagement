@@ -36,6 +36,7 @@
     "passport": "^0.7.0",
     "passport-auth0": "^1.4.4",
     "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^2.0.943",
     "qrcode": "^1.5.4",
     "react-apexcharts": "^1.7.0",
     "react-chartjs-2": "^5.3.0",
