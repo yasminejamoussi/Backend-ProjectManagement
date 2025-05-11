@@ -7,6 +7,7 @@ const pdfjsLib = require('pdfjs-dist');
 const { exec } = require("child_process");
 const util = require("util");
 const path = require('path'); // Add this line
+const fs = require('fs').promises; // Add this line
 
 // Promisify exec pour une gestion asynchrone
 const execPromise = util.promisify(exec);
