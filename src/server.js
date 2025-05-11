@@ -24,7 +24,7 @@ const express = require("express");
      origin: (origin, callback) => {
        const allowedOrigins = [
          "http://localhost:5173",
-         "https://frontend-projectmanagement.onrender.com"
+         "https://frontend-projectmanagement-5cfm.onrender.com"
        ];
        console.log('CORS Origin reçue:', origin);
        if (!origin || allowedOrigins.includes(origin)) {
