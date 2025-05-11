@@ -264,27 +264,34 @@ exports.uploadCV = (req, res) => {
         return res.status(500).json({ message: "Failed to extract text from CV", error: pdfError.message });
       }*/  
 
-      // Upload manuel du fichier sur Cloudinary avec une Promise
-      let cvText = "";
-try {
-  console.log("📜 Extraction du texte du CV...");
-  const pdfBuffer = req.file.buffer;
-  console.log("📊 Taille du buffer PDF :", pdfBuffer.length); // Check buffer size
-  const pdfData = await pdfParse(pdfBuffer, { max: 10 }); // Limit to first 10 pages for testing
-  cvText = pdfData.text;
-  console.log("✅ Texte extrait complet :", cvText);
-  console.log("📏 Longueur du texte extrait :", cvText.length);
-  if (!cvText || cvText.trim().length === 0) {
-    console.warn("⚠️ Aucun texte significatif extrait. Le PDF peut être une image ou corrompu.");
-  }
-} catch (pdfError) {
-  console.error("❌ Erreur détaillée lors de l'extraction du texte :", pdfError);
-  return res.status(500).json({ 
-    message: "Failed to extract text from CV", 
-    error: pdfError.message,
-    stack: pdfError.stack // Include stack trace for more details
-  });
-}
+        let cvText = "";
+        try {
+          console.log("📜 Extraction du texte du CV avec pdf-parse...");
+          const pdfBuffer = req.file.buffer;
+          console.log("📊 Taille du buffer PDF :", pdfBuffer.length);
+          const pdfData = await pdfParse(pdfBuffer, {
+            max: 10, // Limit to first 10 pages
+            ignoreErrors: true, // Attempt to ignore minor parsing errors
+            version: 'v2.0.0' // Force a specific version if supported (adjust based on your pdf-parse version)
+          });
+          cvText = pdfData.text || "";
+          console.log("✅ Texte extrait complet par pdf-parse :", cvText);
+          console.log("📏 Longueur du texte extrait :", cvText.length);
+          console.log("📑 Pages extraites :", pdfData.numpages);
+          console.log("📋 Métadonnées PDF :", pdfData.info);
+          console.log("📜 Version PDF utilisée :", pdfData.pdfversion);
+          if (!cvText || cvText.trim().length === 0) {
+            console.warn("⚠️ Aucun texte significatif extrait par pdf-parse. Le PDF peut avoir une structure incompatible.");
+          }
+        } catch (pdfError) {
+          console.error("❌ Erreur détaillée avec pdf-parse :", pdfError);
+          console.error("📜 Stack trace :", pdfError.stack);
+          return res.status(500).json({ 
+            message: "Failed to extract text from CV with pdf-parse", 
+            error: pdfError.message,
+            stack: pdfError.stack
+          });
+        }
 
       // Exécuter le script Python extract_skills.py pour extraire les compétences
       /*let extractedSkills = [];
